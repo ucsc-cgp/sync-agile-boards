@@ -11,11 +11,11 @@ def main():
     repo_name = sys.argv[2]
     issue = sys.argv[3]
 
-    print(repo['AZUL'])
-    # zen = ZenHub(path_to_token=path_to_token,
-    #              repo=repo,
-    #              issue=issue)
-    # print(f'Story points: {zen.get_storypoints()}')
+    #print(repo['AZUL'])
+    zen = ZenHub(path_to_token=path_to_token,
+                 repo_name=repo_name,
+                 issue=issue)
+    print(f'Story points: {zen.get_storypoints()}')
 
 
 class ZenHub():
@@ -28,8 +28,8 @@ class ZenHub():
 
 
     def get_storypoints(self):
-        url = self.generate_url()
-        headers = {{'X-Authentication-Token': self.token}}
+        url = self._generate_url()
+        headers = {'X-Authentication-Token': self.token}
         response = requests.get(url, headers=headers, verify=False)
         if not response.status_code == 200:
             return {'reason': response.reason}
