@@ -100,6 +100,3 @@ class Issue:
             "fields": json_dict
         }
         return fields
-
-
-p = Project("https://ucsc-cgl.atlassian.net/", "TEST", "esoth@ucsc.edu", "frOOtl00ps")
