@@ -1,2 +1,2 @@
-# sync_agile_boards
+# sync-agile-boards
 This is for sync testing
