@@ -20,8 +20,10 @@ class Project:
         self.key = project_key
         self.username = username
         self.password = password
-        
+
         r = requests.get("%srest/api/latest/search?jql=project=%s" % (url, project_key))
+        pp = pprint.PrettyPrinter()
+        pp.pprint(json.loads(r.text))
         self.issues = [Issue(response) for response in json.loads(r.text)["issues"]]
 
     def post_new_issue(self, issue):
@@ -31,11 +33,34 @@ class Project:
         :param issue: an Issue object
         """
 
-        r = requests.post("https://ucsc-cgl.atlassian.net/rest/api/latest/issue/", json=issue.copy(), auth=(self.username, self.password))
+        r = requests.post("https://ucsc-cgl.atlassian.net/rest/api/latest/issue/", json=issue.copy(),
+                          auth=(self.username, self.password))
+
+        if r.status_code != 201:  # HTTP 201 means created
+            print("%d Error" % r.status_code)
+
+    def edit_existing_issue(self, issue, **kwargs):
+        """
+        Edit fields in an existing issue and post the changes
+
+        :param issue: An Issue object to edit
+        :param kwargs: Key-value pairs of issue fields and their new values. For some fields, their value must be set to
+         a sub-dictionary e.g. status={'description': 'A new issue',
+                                        'id': '10013',
+                                        name': 'New Issue'}
+        You can either pass these values as a dictionary like this, or just by their names e.g. status='New Issue', in
+        which case they will be formatted into a dictionary.
+        """
+        for key, val in kwargs:
+            if key in ["assignee", "issuetype", "status"] and isinstance(val, str):  # These have sub-dictionaries
+                val = {"name": val}  # Make a sub-dictionary to hold the name
+            issue.fields[key] = val  # Update the value
+
+        r = requests.post("%s/rest/api/latest/issue/%s" % (self.key, issue.fields["key"]), json=issue.copy(),
+                          auth=(self.username, self.password))
 
         if r.status_code != 201:
             print("%d Error" % r.status_code)
-
 
 class Issue:
 
@@ -53,6 +78,7 @@ class Issue:
         """
         self.fields = dict()
         self.fields["project"] = response["fields"]["project"]
+        self.fields["key"] = response["fields"]["key"]
         self.fields["summary"] = response["fields"]["summary"]
         self.fields["description"] = response["fields"]["description"]
         self.fields["created"] = response["fields"]["created"]
@@ -76,4 +102,4 @@ class Issue:
         return fields
 
 
-
+p = Project("https://ucsc-cgl.atlassian.net/", "TEST", "esoth@ucsc.edu", "frOOtl00ps")
