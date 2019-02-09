@@ -73,7 +73,12 @@ class TestZenHub(unittest.TestCase):
         self.assertEqual(res.url, mock_generate_url.return_value, 'incorrect URL')
 
         # Most import assertion:
-        self.assertEqual(res.get_info(), {'Pipeline': 'Review/QA', 'Storypoints': 2}, 'get_info has incorrect output')
+        self.assertEqual(res.get_info(), {'Story number': str(issue),
+                                          'Repository': repo_name,
+                                          'Pipeline': 'Review/QA',
+                                          'Storypoints': 2,
+                                          'Timestamp': 'Not available'},
+                         'get_info has incorrect output')
 
     @patch('src.zenhub.ZenHub._generate_url')
     @patch('src.zenhub.ZenHub._get_repo_id')

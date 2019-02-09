@@ -34,13 +34,22 @@ class ZenHub():
 
     def get_info(self):
         url = self._generate_url()
-        logger.info(f'Getting storypoints for story {self.issue} in repo {self.repo_name}')
+        logger.info(f'Getting pipeline, storypoints and timestamp for story {self.issue} in repo {self.repo_name}')
         headers = {'X-Authentication-Token': self.token}
         response = requests.get(url, headers=headers, verify=False)
         if response.status_code == 200:
             data = response.json()
-            return {'Pipeline': data['pipeline']['name'],
-                    'Storypoints': data['estimate']['value']}
+            pipeline = data['pipeline']['name']
+            storypoints = data['estimate']['value']
+            if data['plus_ones'] == []:
+                timestamp = 'Not available'
+            else:
+                timestamp = data['plus_ones']['created_at']
+            return {'Story number': self.issue,
+                    'Repository': self.repo_name,
+                    'Pipeline': pipeline,
+                    'Storypoints': storypoints,
+                    'Timestamp': timestamp}
 
         else:
             return response.json()
