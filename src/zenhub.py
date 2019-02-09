@@ -1,8 +1,10 @@
 #!/usr/env/python3
 
 
-import os, sys, logging, requests
-from settings import *
+import os, sys, logging, requests, json
+sys.path.append(".")
+from settings import repo, giturl
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -14,11 +16,10 @@ def main():
     repo_name = sys.argv[2]
     issue = sys.argv[3]
 
-    #print(repo['AZUL'])
     zen = ZenHub(path_to_token=path_to_token,
                  repo_name=repo_name,
                  issue=issue)
-    logger.info(f'Story points: {zen.get_storypoints()}')
+    print(json.dumps(zen.get_info()))
 
 
 class ZenHub():
@@ -31,13 +32,16 @@ class ZenHub():
         self.url = self._generate_url()
 
 
-    def get_storypoints(self):
+    def get_info(self):
         url = self._generate_url()
         logger.info(f'Getting storypoints for story {self.issue} in repo {self.repo_name}')
         headers = {'X-Authentication-Token': self.token}
         response = requests.get(url, headers=headers, verify=False)
-        if not response.status_code == 200:
-            return {'reason': response.reason}
+        if response.status_code == 200:
+            data = response.json()
+            return {'Pipeline': data['pipeline']['name'],
+                    'Storypoints': data['estimate']['value']}
+
         else:
             return response.json()
 
@@ -60,8 +64,8 @@ class ZenHub():
             if repo_name == 'azul':
                 return str(repo['AZUL'])
         except ValueError as err:
-            logger.info(f'{repo} is not a known repo')
+            logger.info(f'{repo_name} is not a known repo')
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
