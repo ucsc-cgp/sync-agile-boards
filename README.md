@@ -6,7 +6,7 @@ This is for sync testing
 Create a virtual environment for Python 3 and activate it, install the requirements, and in a terminal run
 
 ```bash
-python src/zenhub.py $PATH_TO_ZENHUB_TOKEN $STORYNUMBER $REPONAME | jq '.'
+python src/zenhub.py $PATH_TO_ZENHUB_TOKEN $REPONAME $STORYNUMBER | jq '.'
 ```
 
 This should return the following output:
