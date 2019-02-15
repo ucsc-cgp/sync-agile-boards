@@ -48,7 +48,6 @@ def mocked_response(*args, **kwargs):
         raise RuntimeError(args, kwargs)
 
 
-
 class TestZenHub(unittest.TestCase):
 
     @patch('src.zenhub.ZenHub._generate_url')
@@ -155,7 +154,7 @@ class TestZenHub(unittest.TestCase):
                      repo_name=repo_name,
                      issue=issue)
 
-        self.assertEqual(res._get_pipeline_ids, {'Done': 12345})
+        self.assertEqual(res._get_pipeline_ids(), {'Done': 12345})
 
 
 if __name__ == '__main__':
