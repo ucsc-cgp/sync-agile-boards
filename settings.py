@@ -1,5 +1,6 @@
 repo = dict(
-    AZUL = 139095537
+    AZUL = 139095537,
+    SYNC = 169628529
 )
 
 giturl = dict(
