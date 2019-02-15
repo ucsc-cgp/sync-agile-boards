@@ -2,8 +2,9 @@ repo = dict(
     AZUL=139095537
     )
 
-giturl = dict(
-    URL='https://api.zenhub.io/p1/repositories/'
+url_mgmnt_sys = dict(
+    jira_url='https://ucsc-cgl.atlassian.net',
+    zenhub_url='https://api.zenhub.io/p1/repositories/'
     )
 
 auth = dict(

@@ -3,7 +3,7 @@
 
 import os, sys, logging, requests, json
 sys.path.append(".")
-from settings import repo, giturl
+from settings import repo, url_mgmnt_sys
 
 
 logger = logging.getLogger()
@@ -55,7 +55,7 @@ class ZenHub():
             return response.json()
 
     def _generate_url(self):
-        _url = giturl['URL']
+        _url = url_mgmnt_sys['URL']
         return os.path.join(_url, self.repo_id, 'issues', self.issue)
 
     @staticmethod
