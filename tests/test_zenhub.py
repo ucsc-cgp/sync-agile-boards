@@ -6,7 +6,7 @@ from src.zenhub import ZenHub
 
 
 def mocked_response(*args, **kwargs):
-    """Create class to mock response in _get_info method."""
+    """Create class to mock response in _get_info and _get_repo_id methods."""
 
     class MockResponse:
         def __init__(self, json_data, status_code, reason):
@@ -19,7 +19,7 @@ def mocked_response(*args, **kwargs):
 
     # Careful, args needs to be a tuple, and that always ends with a "," character in Python!!
     if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',) and \
-            kwargs == {'headers': {'X-Authentication-Token': 99999999}, 'verify': False}:
+            kwargs == {'headers': {'X-Authentication-Token': 99999999, 'Content-Type': 'application/json'}, 'verify': False}:
         return MockResponse(
             {'estimate': {'value': 2},
              'plus_ones': [],
@@ -29,21 +29,23 @@ def mocked_response(*args, **kwargs):
             'Ok'
         )
     elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/55555555',) and \
-            kwargs == {'headers': {'X-Authentication-Token': 99999999}, 'verify': False}:
+            kwargs == {'headers': {'X-Authentication-Token': 99999999, 'Content-Type': 'application/json'}, 'verify': False}:
         return MockResponse(
             {'message': 'Issue not found'},
             404,
             'Not found'
         )
     elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',) and \
-            kwargs == {'headers': {'X-Authentication-Token': 99999999}, 'verify': False}:
+            kwargs == {'headers': {'X-Authentication-Token': 99999999, 'Content-Type': 'application/json'}, 'verify': False}:
         return MockResponse(
             {'message': 'Invalid Field for repo_id: repo_id is a required field'},
             422,
             'Unprocessable Entity'
         )
+    elif '/board' in args[0]:  # The request used for determining pipeline ids in _get_pipeline_ids().
+        return MockResponse({'pipelines': [{'id': 12345, 'name': 'Done', 'issues': []}]}, 200, 'OK')
     else:
-        assert False
+        raise RuntimeError(args, kwargs)
 
 
 
@@ -59,7 +61,7 @@ class TestZenHub(unittest.TestCase):
         issue = 42
 
         mock_get_token.return_value = 99999999
-        mock_repo_id.return_value = 123456789
+        mock_repo_id.return_value = '123456789'
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value}/issues/{issue}")
 
@@ -90,7 +92,7 @@ class TestZenHub(unittest.TestCase):
         issue = 55555555
 
         mock_get_token.return_value = 99999999
-        mock_repo_id.return_value = 123456789
+        mock_repo_id.return_value = '123456789'
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value}/issues/{issue}")
 
@@ -116,7 +118,7 @@ class TestZenHub(unittest.TestCase):
         issue = 55555555
 
         mock_get_token.return_value = 99999999
-        mock_repo_id.return_value = 100000000
+        mock_repo_id.return_value = '100000000'
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value}/issues/{issue}")
 
@@ -133,14 +135,27 @@ class TestZenHub(unittest.TestCase):
         self.assertEqual(res.get_info(), {'message': 'Invalid Field for repo_id: repo_id is a required field'},
                          'get_info has incorrect output')
 
+    @patch('src.zenhub.ZenHub._get_repo_id')
     @patch('src.zenhub.ZenHub._generate_url', return_value='https://foo.bar')
-    def test_generate_url(self, mock_generate_url):
+    def test_generate_url(self, mock_generate_url, mock_repo_id):
 
+        mock_repo_id.return_value = '100000000'  # Needed for generating repo_ids in init.
         zen = ZenHub(path_to_token='foo/bar.txt',
                      repo_name='baz',
                      issue=42)
         self.assertEqual(zen.url, 'https://foo.bar', 'URL not generated correctly')
 
+    @patch('requests.get', side_effect=mocked_response)
+    def test_get_pipeline_ids(self, mocked_get_info):
+        path_to_token = '~/foo/bar/baz.txt'
+        repo_name = 'azul'
+        issue = 55555555
+
+        res = ZenHub(path_to_token=path_to_token,
+                     repo_name=repo_name,
+                     issue=issue)
+
+        self.assertEqual(res._get_pipeline_ids, {'Done': 12345})
 
 
 if __name__ == '__main__':

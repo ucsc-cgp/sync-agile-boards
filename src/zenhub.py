@@ -15,6 +15,8 @@ def main():
     path_to_token = sys.argv[1]
     repo_name = sys.argv[2]
     issue = sys.argv[3]
+    points = sys.argv[4]
+    pipeline = sys.argv[5]
 
     zen = ZenHub(path_to_token=path_to_token,
                  repo_name=repo_name,
@@ -23,7 +25,7 @@ def main():
     before_change = json.dumps(zen.get_info())
     print(before_change)
 
-    zen.update_ticket(points=3, pipeline='New Issues', to_epic=True)
+    zen.update_ticket(points=points, pipeline=pipeline)
 
     after_change = json.dumps(zen.get_info())
     print(after_change)
@@ -37,7 +39,7 @@ class ZenHub():
         self.issue = str(issue)
         self.url = self._generate_url()
         self.headers = {'X-Authentication-Token': self.token, 'Content-Type': 'application/json'}
-        self.pipeline_ids = self.get_pipeline_ids()
+        self.pipeline_ids = self._get_pipeline_ids()
 
     def get_info(self):
         logger.info(f'Getting pipeline, storypoints and timestamp for story {self.issue} in repo {self.repo_name}')
@@ -93,16 +95,16 @@ class ZenHub():
 
         :param int value: The desired value for the point estimate.
         """
-        logger.info(f'Changing the current value of story points to {value}')
+        logger.debug(f'Changing the current value of story points to {value}')
 
         url = os.path.join(self.url, 'estimate')
         json_dict = {'estimate': value}
         response = requests.put(url, headers=self.headers, json=json_dict)
 
         if response.status_code == 200:
-            logger.info(f'Success. {self.issue} now has a story points value of {value}')
+            logger.debug(f'Success. {self.issue} now has a story points value of {value}')
         else:
-            logger.info(f'Failed to change the story point value of {self.issue} to {value}')
+            logger.debug(f'Failed to change the story point value of {self.issue} to {value}')
 
     def _update_issue_pipeline(self, pipeline, pos=None):
         """
@@ -116,7 +118,7 @@ class ZenHub():
         :param pos: Either 'top', 'bottom', or a 0-based position in the array of tickets in this pipeline.
         """
         if pipeline in self.pipeline_ids:
-            logger.info(f'Changing the current value of pipeline to {pipeline}')
+            logger.debug(f'Changing the current value of pipeline to {pipeline}')
 
             url = os.path.join(self.url, 'moves')
             json_dict = {'pipeline_id': self.pipeline_ids[pipeline], 'position': pos or 'top'}
@@ -124,26 +126,26 @@ class ZenHub():
             response = requests.post(url, headers=self.headers, json=json_dict)
 
             if response.status_code == 200:
-                logger.info(f'Success. {self.issue} was moved to {pipeline}')
+                logger.debug(f'Success. {self.issue} was moved to {pipeline}')
             else:
-                logger.info(f'Failed to move {self.issue} to {pipeline}')
+                logger.debug(f'Failed to move {self.issue} to {pipeline}')
         else:
             logger.error(f'{pipeline} is not a valid pipeline.')
 
     def _update_issue_to_epic(self):
         """Change the issue into an Epic."""
-        logger.info(f'Turning {self.issue} into an epic in repo {self.repo_name}')
+        logger.debug(f'Turning {self.issue} into an epic in repo {self.repo_name}')
 
         url = os.path.join(self.url, 'convert_to_epic')
         json_dict = {'issues': [{'repo_id': self.repo_id, 'issue_number': self.issue}]}
         response = requests.put(url, headers=self.headers, json=json_dict)
 
         if response.status_code == 200:
-            logger.info(f'Success. {self.issue} was converted to an Epic')
+            logger.debug(f'Success. {self.issue} was converted to an Epic')
         else:
-            logger.info(f'Failed to convert {self.issue} to an Epic')
+            logger.debug(f'Failed to convert {self.issue} to an Epic')
 
-    def get_pipeline_ids(self):
+    def _get_pipeline_ids(self):
         """
         Determine the valid pipeline IDs for this repo.
 
