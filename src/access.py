@@ -30,6 +30,10 @@ def get_access_params(mgmnt_sys):
         options = {'server': url_mgmnt_sys['zenhub_url']}
         path_to_token = token_path['api_token_zenhub']
         logging.info('Accessing ZenHub')
+    elif mgmnt_sys in ['git', 'github']:
+        options = {'server': url_mgmnt_sys['github_url']}
+        path_to_token = token_path['api_token_github']
+        logging.info('Accessing GitHub')
     else:
         raise ValueError(f'{mgmnt_sys} not a valid input.')
 

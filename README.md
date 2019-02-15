@@ -31,6 +31,16 @@ This should return the following output:
 }
 ```
 
+## Return information from Jira
+
+Create a virtual environment for Python 3 and activate it, install the requirements, and in a terminal run
+```bash
+python src/access_jira.py <url> <username> <password> <story number>
+```
+
+This should return story number, status, story point value, timestamps of when created and last updated, and the total number of issues in the project.
+
+
 ## Tests
 
 To run all tests execute
@@ -38,3 +48,5 @@ To run all tests execute
 python -m unittest discover -s tests
 ```
 from the project root.
+
+
