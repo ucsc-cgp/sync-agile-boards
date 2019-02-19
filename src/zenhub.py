@@ -1,9 +1,13 @@
 #!/usr/env/python3
 
-
-import os, sys, logging, requests, json
+import os
+import sys
+import logging
+import requests
+import json
 sys.path.append(".")
-from settings import repo, giturl
+from src.access import get_access_params
+from settings import repo
 
 
 logger = logging.getLogger()
@@ -12,20 +16,18 @@ FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
 def main():
-    path_to_token = sys.argv[1]
-    repo_name = sys.argv[2]
-    issue = sys.argv[3]
+    repo_name = sys.argv[1]
+    issue = sys.argv[2]
 
-    zen = ZenHub(path_to_token=path_to_token,
-                 repo_name=repo_name,
+    zen = ZenHub(repo_name=repo_name,
                  issue=issue)
     print(json.dumps(zen.get_info()))
 
 
 class ZenHub():
 
-    def __init__(self, path_to_token=None, repo_name=None, issue=None):
-        self.token = self._get_token(path_to_token)
+    def __init__(self, repo_name=None, issue=None):
+        self.access_params = get_access_params(mgmnt_sys='zenhub')
         self.repo_name = repo_name
         self.repo_id = self._get_repo_id(repo_name)
         self.issue = str(issue)
@@ -35,16 +37,19 @@ class ZenHub():
     def get_info(self):
         url = self._generate_url()
         logger.info(f'Getting pipeline, storypoints and timestamp for story {self.issue} in repo {self.repo_name}')
-        headers = {'X-Authentication-Token': self.token}
+        headers = {'X-Authentication-Token': self.access_params['api_token']}
         response = requests.get(url, headers=headers, verify=False)
         if response.status_code == 200:
             data = response.json()
             pipeline = data['pipeline']['name']
-            storypoints = data['estimate']['value']
             if data['plus_ones'] == []:
                 timestamp = 'Not available'
             else:
                 timestamp = data['plus_ones']['created_at']
+            if 'estimate' not in data.keys():
+                storypoints = 'None'
+            else:
+                storypoints = data['estimate']['value']
             return {'Story number': self.issue,
                     'Repository': self.repo_name,
                     'Pipeline': pipeline,
@@ -55,18 +60,10 @@ class ZenHub():
             return response.json()
 
     def _generate_url(self):
-        _url = giturl['URL']
+        _url = self.access_params['options']['server']
         return os.path.join(_url, self.repo_id, 'issues', self.issue)
 
-    @staticmethod
-    def _get_token(path_to_token):
-        try:
-            with open(path_to_token, 'r') as fh:
-                tok = fh.readlines()
-                return tok[0]
-        except FileNotFoundError as e:
-            logger.info(e.strerror)
-
+    # TODO: very temporary: need to use GitHub API to return repo_id in the future
     @staticmethod
     def _get_repo_id(repo_name):
         try:
