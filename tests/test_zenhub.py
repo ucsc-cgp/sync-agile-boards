@@ -144,8 +144,40 @@ class TestZenHub(unittest.TestCase):
                      issue=42)
         self.assertEqual(zen.url, 'https://foo.bar', 'URL not generated correctly')
 
+    @patch('os.path.join')
+    @patch('requests.put')
+    def test_update_issue_points(self, mock_put_change_points, mock_url_creator):
+        """Test that ZenHub.update_issue_points() works."""
+        issue_num = 42
+        new_points = 3
+        mock_url_creator.return_value = f'https://api.zenhub.io/p1/repositories/issues/{issue_num}/estimate'
+
+        zen = ZenHub(path_to_token='foo/bar.txt', repo_name='azul', issue=issue_num)
+        zen._update_issue_points(new_points)
+
+        mock_put_change_points.assert_called()
+
+        # Check that the url is in the request
+        request_args = list(mock_put_change_points.call_args)
+        self.assertIn((mock_url_creator.return_value,), request_args)  # MagicMock stores this as a tuple.
+
+        # Check that the json_dict is in the put request.
+        expected_dict = {'headers': zen.headers.copy()}
+        expected_dict.update({'json': {'estimate': new_points}})
+        self.assertIn(expected_dict, request_args)
+
+    def test_update_issue_pipeline(self):
+        pass
+
+    def test_update_issue_to_epic(self):
+        pass
+
+    def test_update_ticket(self):
+        pass
+
     @patch('requests.get', side_effect=mocked_response)
     def test_get_pipeline_ids(self, mocked_get_info):
+        """Test that ZenHub._get_pipeline_ids"""
         path_to_token = '~/foo/bar/baz.txt'
         repo_name = 'azul'
         issue = 55555555
