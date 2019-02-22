@@ -1,7 +1,7 @@
 #!/usr/env/python3
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from src.zenhub import ZenHub
 
 
@@ -46,28 +46,30 @@ def mocked_response(*args, **kwargs):
         assert False
 
 
+class ZenHub_with_mocked_token(ZenHub):
+    def __init__(self, repo_name=None, issue=None):
+        self.access_params = {'options': 'https://api.zenhub.io/p1/repositories', 'api_token': 99999999}
+        self.repo_name = repo_name
+        self.repo_id = self._get_repo_id(repo_name)
+        self.issue = str(issue)
+        self.url = self._generate_url()
+
 
 class TestZenHub(unittest.TestCase):
 
     @patch('src.zenhub.ZenHub._generate_url')
     @patch('src.zenhub.ZenHub._get_repo_id')
-    @patch('src.zenhub.ZenHub._get_token')
     @patch('requests.get', side_effect=mocked_response)
-    def test_happy_path(self, mocked_get_info, mock_get_token, mock_repo_id, mock_generate_url):
-        path_to_token = '~/foo/bar/baz.txt'
+    def test_happy_path(self, mocked_get_info, mock_repo_id, mock_generate_url):
         repo_name = 'azul'
         issue = 42
 
-        mock_get_token.return_value = 99999999
         mock_repo_id.return_value = 123456789
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value}/issues/{issue}")
 
-        res = ZenHub(path_to_token=path_to_token,
-                     repo_name=repo_name,
-                     issue=issue)
+        res = ZenHub_with_mocked_token(repo_name=repo_name, issue=issue)
 
-        self.assertEqual(res.token, mock_get_token.return_value, 'incorrect token')
         self.assertEqual(res.repo_id, mock_repo_id.return_value, 'incorrect repo_id')
         self.assertEqual(res.issue, str(issue), 'incorrect issue number')
         self.assertEqual(res.url, mock_generate_url.return_value, 'incorrect URL')
@@ -82,23 +84,17 @@ class TestZenHub(unittest.TestCase):
 
     @patch('src.zenhub.ZenHub._generate_url')
     @patch('src.zenhub.ZenHub._get_repo_id')
-    @patch('src.zenhub.ZenHub._get_token')
     @patch('requests.get', side_effect=mocked_response)
-    def test_existing_repo_ID_nonexisting_issue_num(self, mocked_get_info, mock_get_token, mock_repo_id, mock_generate_url):
-        path_to_token = '~/foo/bar/baz.txt'
+    def test_existing_repo_ID_nonexisting_issue_num(self, mocked_get_info, mock_repo_id, mock_generate_url):
         repo_name = 'azul'
         issue = 55555555
 
-        mock_get_token.return_value = 99999999
         mock_repo_id.return_value = 123456789
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value}/issues/{issue}")
 
-        res = ZenHub(path_to_token=path_to_token,
-                     repo_name=repo_name,
-                     issue=issue)
+        res = ZenHub_with_mocked_token(repo_name=repo_name, issue=issue)
 
-        self.assertEqual(res.token, mock_get_token.return_value, 'incorrect token')
         self.assertEqual(res.repo_id, mock_repo_id.return_value, 'incorrect repo_id')
         self.assertEqual(res.issue, str(issue), 'incorrect issue number')
         self.assertEqual(res.url, mock_generate_url.return_value, 'incorrect URL')
@@ -108,23 +104,17 @@ class TestZenHub(unittest.TestCase):
 
     @patch('src.zenhub.ZenHub._generate_url')
     @patch('src.zenhub.ZenHub._get_repo_id')
-    @patch('src.zenhub.ZenHub._get_token')
     @patch('requests.get', side_effect=mocked_response)
-    def test_nonexisting_repo_ID_nonexisting_issue_num(self, mocked_get_info, mock_get_token, mock_repo_id, mock_generate_url):
-        path_to_token = '~/foo/bar/baz.txt'
+    def test_nonexisting_repo_ID_nonexisting_issue_num(self, mocked_get_info, mock_repo_id, mock_generate_url):
         repo_name = 'azul'
         issue = 55555555
 
-        mock_get_token.return_value = 99999999
         mock_repo_id.return_value = 100000000
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value}/issues/{issue}")
 
-        res = ZenHub(path_to_token=path_to_token,
-                     repo_name=repo_name,
-                     issue=issue)
+        res = ZenHub_with_mocked_token(repo_name=repo_name, issue=issue)
 
-        self.assertEqual(res.token, mock_get_token.return_value, 'incorrect token')
         self.assertEqual(res.repo_id, mock_repo_id.return_value, 'incorrect repo_id')
         self.assertEqual(res.issue, str(issue), 'incorrect issue number')
         self.assertEqual(res.url, mock_generate_url.return_value, 'incorrect URL')
@@ -136,9 +126,7 @@ class TestZenHub(unittest.TestCase):
     @patch('src.zenhub.ZenHub._generate_url', return_value='https://foo.bar')
     def test_generate_url(self, mock_generate_url):
 
-        zen = ZenHub(path_to_token='foo/bar.txt',
-                     repo_name='baz',
-                     issue=42)
+        zen = ZenHub(repo_name='baz', issue=42)
         self.assertEqual(zen.url, 'https://foo.bar', 'URL not generated correctly')
 
 
