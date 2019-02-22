@@ -25,7 +25,7 @@ def main():
     before_change = json.dumps(zen.get_info())
     print(before_change)
 
-    zen.update_ticket(points=points, pipeline=pipeline)
+    zen.update_issue(points=points, pipeline=pipeline)
 
     after_change = json.dumps(zen.get_info())
     print(after_change)
@@ -162,7 +162,7 @@ class ZenHub():
         else:
             logger.info(f'Failed.')
 
-    def update_ticket(self, points=None, pipeline=None, pipeline_pos = None, to_epic=False):
+    def update_issue(self, points=None, pipeline=None, pipeline_pos = None, to_epic=False):
         """
         Update the information of a Zenhub Issue.
 
