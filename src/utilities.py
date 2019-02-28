@@ -4,9 +4,8 @@ import requests
 import os
 import errno
 import logging
-from settings import org, urls
-from more_itertools import one
-from urllib.parse import urljoin
+from settings import urls
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -14,15 +13,16 @@ FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
 
-def get_repo_id(repo_name):
-    check_for_git_config('.gitconfig')
-    url = _get_repo_url(repo_name)
+def get_repo_id(repo_name, org_name):
+    url = _get_repo_url(repo_name, org_name)
     response = requests.get(url)
+    r = {'status_code': response.status_code}
     if response.status_code == 200:
         response_json = response.json()
-        return {'repo_id': response_json['id']}
+        r['repo_id'] = response_json['id']
     else:
-        return {'repo_id': response.reason}
+        r['repo_id'] = response.reason
+    return r
 
 
 def check_for_git_config(git_config_file):
@@ -35,17 +35,15 @@ def check_for_git_config(git_config_file):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), git_config_file)
 
 
-def _get_repo_url(repo_name):
+def _get_repo_url(repo_name, org_name):
     """
-    Return URL using GitHub API for repo_name
-    (use look-up-table to return GitHub organization from repo name)
-    """
-    base_url = urls['github_api']
-    _org = [k for k, v in org.items() if repo_name in v]
-    if _org == []:
-        raise ValueError(f'Cannot find organization for {repo_name}')
-    assert len(_org) == 1
-    organization = one(_org)
-    url = f'{organization}/{repo_name}'
+    Return URL using GitHub API.
 
-    return urljoin(base=base_url, url=url)
+    Example:
+        If repo_name = 'bar' and org_name is 'foo', this returns
+        "https://api.github.com/repos/foo/bar"
+    """
+
+    base_url = urls['github_api']
+    return  f'{base_url}/{org_name}/{repo_name}'
+

@@ -50,27 +50,24 @@ def mocked_response(*args, **kwargs):
         assert False
 
 
-class ZenHubWithMockedToken(ZenHub):
-    def __init__(self, repo_name, issue):
-        self.access_params = {'options': 'https://api.zenhub.io/p1/repositories', 'api_token': 99999999}
-        self.repo_name = repo_name
-        self.repo_id = 123456789
-        self.issue = str(issue)
-        self.url = self._generate_url()
-
 
 class TestZenHub(unittest.TestCase):
-    @patch('src.utilities.get_repo_id')
+    @patch('src.zenhub.get_access_params')
+    @patch('src.zenhub.get_repo_id')
     @patch('src.zenhub.ZenHub._generate_url')
-    @patch('requests.get', side_effect=mocked_response)
-    def test_happy_path(self, mocked_get_info, mock_generate_url, mock_repo_id):
-        repo_name = 'foo'
+    @patch('src.zenhub.requests.get', side_effect=mocked_response)
+    def test_happy_path(self, mocked_get_info, mock_generate_url, mock_repo_id, mock_access_params):
+        org_name = 'foo'
+        repo_name = 'bar'
         issue = 42
 
-        mock_repo_id.return_value = {'repo_id': 123456789}
+        # Construct all mocked return values used in instance of class ZenHub:
+        mock_repo_id.return_value = {'repo_id': '123456789', 'status_code': 200}
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value['repo_id']}/issues/{issue}")
-        res = ZenHubWithMockedToken(repo_name=repo_name, issue=issue)
+        mock_access_params.return_value = {'api_token': 99999999}
+
+        res = ZenHub(org_name, repo_name, issue)
 
         self.assertEqual(res.repo_id, mock_repo_id.return_value['repo_id'], 'incorrect repo_id')
         self.assertEqual(res.issue, str(issue), 'incorrect issue number')
@@ -84,18 +81,23 @@ class TestZenHub(unittest.TestCase):
                                           'Timestamp': 'Not available'},
                          'get_info has incorrect output')
 
+    @patch('src.zenhub.get_access_params')
+    @patch('src.zenhub.get_repo_id')
     @patch('src.zenhub.ZenHub._generate_url')
-    @patch('src.utilities.get_repo_id')
     @patch('requests.get', side_effect=mocked_response)
-    def test_existing_repo_ID_nonexisting_issue_num(self, mocked_get_info, mock_repo_id, mock_generate_url):
+    def test_existing_repo_ID_nonexisting_issue_num(self, mocked_get_info,
+                                                    mock_generate_url, mock_repo_id, mock_access_params):
+        org_name = 'foo'
         repo_name = 'bar'
         issue = 55555555
 
-        mock_repo_id.return_value = {'repo_id': 123456789}
+        # Construct all mocked return values used in instance of class ZenHub:
+        mock_repo_id.return_value = {'repo_id': '123456789', 'status_code': 200}
         mock_generate_url.return_value = (
             f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value['repo_id']}/issues/{issue}")
+        mock_access_params.return_value = {'api_token': 99999999}
 
-        res = ZenHubWithMockedToken(repo_name=repo_name, issue=issue)
+        res = ZenHub(org_name=org_name, repo_name=repo_name, issue=issue)
 
         self.assertEqual(res.repo_id, mock_repo_id.return_value['repo_id'], 'incorrect repo_id')
         self.assertEqual(res.issue, str(issue), 'incorrect issue number')
@@ -105,40 +107,25 @@ class TestZenHub(unittest.TestCase):
         self.assertEqual(res.get_info(), {'message': 'Issue not found'}, 'get_info has incorrect output')
 
     @patch('src.zenhub.ZenHub._generate_url')
-    @patch('src.utilities.get_repo_id')
+    @patch('src.zenhub.get_repo_id')
     @patch('requests.get', side_effect=mocked_response)
     def test_nonexisting_repo_ID_nonexisting_issue_num(self, mocked_get_info, mock_repo_id, mock_generate_url):
+        org_name = 'foo'
         repo_name = 'baz'
         issue = 55555555
 
-        mock_repo_id.return_value = {'repo_id':100000000}
-        mock_generate_url.return_value = (
-            f"https://api.zenhub.io/p1/repositories/{mock_repo_id.return_value['repo_id']}/issues/{issue}")
+        mock_repo_id.return_value = {'repo_id':100000000, 'status_code': 404}
 
-        class ZenHubWithMockedTokenNonexistRepoId(ZenHubWithMockedToken):
-            def __init__(self, repo_name, issue):
-                self.access_params = {'options': 'https://api.zenhub.io/p1/repositories', 'api_token': 99999999}
-                self.repo_name = repo_name
-                self.repo_id = 100000000
-                self.issue = str(issue)
-                self.url = self._generate_url()
+        self.assertRaises(ValueError, ZenHub, org_name=org_name, repo_name=repo_name, issue=issue)
 
-        res = ZenHubWithMockedTokenNonexistRepoId(repo_name, issue)
 
-        self.assertEqual(res.repo_id, mock_repo_id.return_value['repo_id'], 'incorrect repo_id')
-        self.assertEqual(res.issue, str(issue), 'incorrect issue number')
-        self.assertEqual(res.url, mock_generate_url.return_value, 'incorrect URL')
-
-        # Most import assertion:
-        self.assertEqual(res.get_info(), {'message': 'Invalid Field for repo_id: repo_id is a required field'},
-                         'get_info has incorrect output')
-
-    @patch.dict(org, {'someorg': ['foo', 'bar', 'baz']}, clear=True)
-    @patch('src.zenhub.get_repo_id', return_value={'repo_id': 101})
+    @patch('src.zenhub.get_repo_id', return_value={'repo_id': 101, 'status_code': 200})
     @patch('src.zenhub.ZenHub._generate_url', return_value='https://foo.bar')
     def test_generate_url(self, mock_generate_url, mock_repo_id):
 
-        zen = ZenHub(repo_name='baz', issue=42)
+        zen = ZenHub(org_name='foo', repo_name='bar', issue=42)
+        self.assertEqual(zen.org_name, 'foo')
+        self.assertEqual(zen.repo_name, 'bar')
         self.assertTrue(isinstance(zen.repo_id, str), 'instance attribute repo_id must be of type str')
         self.assertEqual(zen.url, 'https://foo.bar', 'URL not generated correctly')
 

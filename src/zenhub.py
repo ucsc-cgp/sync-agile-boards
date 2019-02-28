@@ -16,19 +16,23 @@ FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
 def main():
-    repo_name = sys.argv[1]
-    issue = sys.argv[2]
+    org_name = sys.argv[1]
+    repo_name = sys.argv[2]
+    issue = sys.argv[3]
 
-    zen = ZenHub(repo_name=repo_name, issue=issue)
+    zen = ZenHub(org_name=org_name, repo_name=repo_name, issue=issue)
     print(json.dumps(zen.get_info()))
 
 
 class ZenHub():
 
-    def __init__(self, repo_name, issue):
+    def __init__(self, org_name, repo_name, issue):
         self.access_params = get_access_params(mgmnt_sys='zenhub')
+        self.org_name = org_name
         self.repo_name = repo_name
-        d = get_repo_id(repo_name)
+        d = get_repo_id(repo_name, org_name)
+        if d['status_code'] is not 200:
+            raise ValueError(f'Check if {repo_name} is an existing repository the organization {org_name}.')
         self.repo_id = str(d['repo_id'])
         self.issue = str(issue)
         self.url = self._generate_url()

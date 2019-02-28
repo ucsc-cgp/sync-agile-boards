@@ -8,7 +8,7 @@ org = {
 }
 
 urls = dict(
-    github_api='https://api.github.com/repos/'
+    github_api='https://api.github.com/repos'
 )
 
 url_mgmnt_sys = dict(
