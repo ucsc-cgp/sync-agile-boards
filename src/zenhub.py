@@ -87,35 +87,29 @@ class ZenHub:
             logger.info(f'{repo_name} is not a known repo')
 
     def _update_issue_points(self, value):
-        """
-        Change the point estimate for the issue.
-
-        :param int value: The desired value for the point estimate.
-        """
-        logger.debug(f'Changing the current value of story points to {value}')
+        # Change the point estimate for the issue.
+        logger.info(f'Changing the current value of story points to {value}')
 
         url = os.path.join(self.url, 'estimate')
         json_dict = {'estimate': value}
         response = requests.put(url, headers=self.headers, json=json_dict)
 
         if response.status_code == 200:
-            logger.debug(f'Success. {self.issue} now has a story points value of {value}')
+            logger.info(f'Success. {self.issue} now has a story points value of {value}')
         else:
-            logger.debug(f'Failed to change the story point value of {self.issue} to {value}')
+            logger.info(f'Failed to change the story point value of {self.issue} to {value}')
 
     def _update_issue_pipeline(self, pipeline, pos=None):
-        """
-        Change the pipeline of an issue.
+        # Change the pipeline of an issue.
 
-        See https://github.com/ZenHubIO/API#move-an-issue-between-pipelines for further documentation.
+        # See https://github.com/ZenHubIO/API#move-an-issue-between-pipelines for further documentation.
 
-        :param str pipeline: A valid string representing a pipeline in Zenhub ('New Issue', 'Icebox'...)
-                             See the Product Development Pipelines section of the following ink for valid values:
-                                 https://www.zenhub.com/blog/how-the-zenhub-team-uses-zenhub-boards-on-github/
-        :param pos: Either 'top', 'bottom', or a 0-based position in the array of tickets in this pipeline.
-        """
+        # pipeline: A string representing a valid pipeline present in this in ZenHub repo ('New Issue', 'Icebox'...)
+        #           Checked against the pipelines found in ZenHub_get_pipeline_ids() and stored in self.pipeline_ids.
+        # pos: Either 'top', 'bottom', or a 0-based position in the array of tickets in this pipeline.
+        pipeline = pipeline.title()
         if pipeline in self.pipeline_ids:
-            logger.debug(f'Changing the current value of pipeline to {pipeline}')
+            logger.info(f'Changing the current value of pipeline to {pipeline}')
 
             url = os.path.join(self.url, 'moves')
             json_dict = {'pipeline_id': self.pipeline_ids[pipeline], 'position': pos or 'top'}
@@ -123,45 +117,43 @@ class ZenHub:
             response = requests.post(url, headers=self.headers, json=json_dict)
 
             if response.status_code == 200:
-                logger.debug(f'Success. {self.issue} was moved to {pipeline}')
+                logger.info(f'Success. {self.issue} was moved to {pipeline}')
             else:
-                logger.debug(f'Failed to move {self.issue} to {pipeline}')
+                logger.info(f'Failed to move {self.issue} to {pipeline}')
         else:
             logger.error(f'{pipeline} is not a valid pipeline.')
 
     def _update_issue_to_epic(self):
-        """Change the issue into an Epic."""
-        logger.debug(f'Turning {self.issue} into an epic in repo {self.repo_name}')
+        # Change the issue into an Epic.
+        logger.info(f'Turning {self.issue} into an epic in repo {self.repo_name}')
 
         url = os.path.join(self.url, 'convert_to_epic')
         json_dict = {'issues': [{'repo_id': self.repo_id, 'issue_number': self.issue}]}
         response = requests.put(url, headers=self.headers, json=json_dict)
 
         if response.status_code == 200:
-            logger.debug(f'Success. {self.issue} was converted to an Epic')
+            logger.info(f'Success. {self.issue} was converted to an Epic')
         else:
-            logger.debug(f'Failed to convert {self.issue} to an Epic')
+            logger.info(f'Failed to convert {self.issue} to an Epic')
 
     def _get_pipeline_ids(self):
-        """
-        Determine the valid pipeline IDs for this repo.
+        # Determine the valid pipeline IDs for this repo.
 
-        :return ids: A dictionary pairing a string representing the pipeline name with its integer ID.
-        """
+        logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
         url = os.path.join(self.access_params['options']['server'], self.repo_id, 'board')
         response = requests.get(url, headers=self.headers)
 
         if response.status_code == 200:
-            logger.info(f'Success.')
+            logger.info(f'Successfully retrieved pipeline ids for {self.repo_name}.')
             data = response.json()
             ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
             return ids
         else:
-            logger.info(f'Failed.')
+            logger.info(f'Failed to retrieve pipeline ids for {self.repo_name}.')
 
-    def update_issue(self, points=None, pipeline=None, pipeline_pos = None, to_epic=False):
+    def update_issue(self, points=None, pipeline=None, pipeline_pos=None, to_epic=False):
         """
-        Update the information of a Zenhub Issue.
+        Update the information of a ZenHub Issue.
 
         :param int points: The number of points the issue should have.
         :param str pipeline: The pipeline the issue should move to.
