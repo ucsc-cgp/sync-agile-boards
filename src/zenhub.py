@@ -1,5 +1,4 @@
 #!/usr/env/python3
-# test comment!
 
 import os
 import sys
