@@ -1,4 +1,8 @@
 #!/usr/env/python3
+from src.access import get_access_params
+from src.utilities import get_repo_id
+from src.board import Issue
+from src.github import GitHubIssue
 
 import os
 import sys
@@ -6,13 +10,6 @@ import logging
 import requests
 import json
 sys.path.append(".")
-from src.access import get_access_params
-from src.utilities import get_repo_id
-from settings import repo
-from src.jira import Issue, JiraIssue
-from src.github import GitHub, GitHubIssue
-
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 FORMAT = '%(asctime)-15s %(message)s'

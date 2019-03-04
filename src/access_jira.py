@@ -24,7 +24,10 @@ def main():
     print("Key: %s" % i.github_key)
     #print("\nTotal issues in this project: %d" % len(p.issues))
 
-    i.update_from(GitHubIssue(key=i.github_key, repo_name=i.github_repo_name))
+    g = GitHubIssue(key=i.github_key, repo_name=i.github_repo_name)
+    g.status = 'In Progress'
+    i.update_from(g)
+    print('new i status: ', i.status)
     i.update_remote()
 
     i = JiraIssue(key=key)  # refresh issue information
@@ -38,5 +41,7 @@ def main():
     print("Description: %s" % i.description)
     print("Summary: %s" % i.summary)
 
+
 if __name__ == '__main__':
     main()
+

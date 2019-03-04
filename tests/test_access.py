@@ -35,7 +35,7 @@ class TestAccess(unittest.TestCase):
 
         mgmnt_sys = 'jira'
         access = get_access_params(mgmnt_sys=mgmnt_sys)
-        self.assertDictEqual(access['options'], {'server': 'https://ucsc-cgl.atlassian.net'})
+        self.assertDictEqual(access['options'], {'server': 'https://ucsc-cgl.atlassian.net/rest/api/latest/'})
 
         mgmnt_sys = 'zen'
         access = get_access_params(mgmnt_sys=mgmnt_sys)

@@ -23,9 +23,10 @@ class Issue:
         """
 
         for attribute in source.__dict__.keys():
-            if attribute not in ['jira', 'github', 'zenhub', 'headers']:  # ignore the self attribute
+            # ignore the self attribute and attributes specific to the source
+            if attribute not in ['jira', 'github', 'zenhub', 'headers', 'url', 'token', 'description']:
                 if source.__dict__[attribute] is not None:
-                    self.__dict__[attribute] = self.__dict__[attribute]
+                    self.__dict__[attribute] = source.__dict__[attribute]
 
     def fill_in_blanks_from(self, source):
         """
@@ -36,3 +37,9 @@ class Issue:
             if attribute not in ['jira', 'github', 'zenhub', 'headers']:  # ignore the self attribute
                 if self.__dict__[attribute] is None:
                     self.__dict__[attribute] = source.__dict__[attribute]  # fill in missing info
+
+
+class Board:
+
+    def __init__(self):
+        pass

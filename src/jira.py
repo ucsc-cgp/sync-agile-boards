@@ -1,3 +1,4 @@
+import base64
 import re
 import requests
 import pprint
@@ -39,18 +40,6 @@ class JiraBoard:
         if response['total'] >= start + response['maxResults']:  # There could be another page of results
             self.api_call(start + response['maxResults'])
 
-    def post_new_issue(self, issue):
-        """
-        Post a new issue to this project with the Jira REST API
-
-        :param issue: an Issue object
-        """
-
-        r = requests.post(self.url + "issue/", headers=self.headers, json=issue.copy())
-
-        if r.status_code != 201:  # HTTP 201 means created
-            print("%d Error" % r.status_code)
-
 
 class JiraIssue(Issue):
 
@@ -64,10 +53,11 @@ class JiraIssue(Issue):
         super().__init__()
 
         self.url = get_access_params('jira')['options']['server']
-        self.username, self.token = get_access_params('jira')['api_token'].split(':')
+        self.token = base64.b64encode(get_access_params('jira')['api_token'].encode())
+        self.headers = {'Authorization': 'Basic ' + self.token.decode()}
 
         if key:
-            r = requests.get("%ssearch?jql=id=%s" % (self.url, key), auth=(self.username, self.token)).json()
+            r = requests.get("%ssearch?jql=id=%s" % (self.url, key), headers=self.headers).json()
             # pp = pprint.PrettyPrinter()
             # pp.pprint(r)
             if "issues" in r.keys():  # If the key doesn't match any issues, this will be an empty list
@@ -76,7 +66,7 @@ class JiraIssue(Issue):
                 raise ValueError("No issue matching this id was found")
 
         if response["fields"]["assignee"]:
-            self.assignee = response["fields"]["assignee"]["key"]
+            self.assignee = response["fields"]["assignee"]["name"]
         self.created = response["fields"]["created"]
         self.description = response["fields"]["description"]
         self.issue_type = response["fields"]["issuetype"]["name"]
@@ -102,7 +92,7 @@ class JiraIssue(Issue):
             return None
 
     def dict_format(self):
-        dict = {
+        d = {
             "fields": {  # these fields can be updated
                 "assignee": {"name": self.assignee},
                 "description": self.description,
@@ -111,9 +101,9 @@ class JiraIssue(Issue):
         }
 
         if self.story_points:
-            dict["fields"]["customfield_10014"] = self.story_points
+            d["fields"]["customfield_10014"] = self.story_points
 
-        return dict
+        return d
 
     def update_remote(self):
         """Update the remote issue. The issue must already exist in Jira."""
@@ -131,14 +121,24 @@ class JiraIssue(Issue):
         transition = {"transition": {"id": transitions[self.status]}}
 
         # Issue status has to be updated as a transition
-        r = requests.post("%sissue/%s/transitions" % (self.url, self.jira_key), auth=(self.username, self.token),
-                          json=transition)
+        r = requests.post("%sissue/%s/transitions" % (self.url, self.jira_key), headers=self.headers, json=transition)
+
         if r.status_code != 204:  # HTTP 204 No Content on success
             print("%d Error transitioning" % r.status_code)
 
         # Issue assignee, description, summary, and story points fields can be updated from a dictionary
-        r = requests.put("%sissue/%s" % (self.url, self.jira_key), auth=(self.username, self.token),
+        r = requests.put("%sissue/%s" % (self.url, self.jira_key),
+                         headers={'Authorization': 'Basic ZXNvdGhAdWNzYy5lZHU6dG5EUlRXTTZCa2RyRUh6VTBlQ0Q0OEMz'},
                          json=self.dict_format())
-        print(r.text)
+
         if r.status_code != 204:  # HTTP 204 No Content on success
             print("%d Error" % r.status_code)
+
+    def post_new_issue(self):
+        """Post this issue to Jira for the first time. The issue must not already exist."""
+
+        r = requests.post(self.url + "issue/", headers=self.headers, json=self.dict_format())
+
+        if r.status_code != 201:  # HTTP 201 means created
+            print("%d Error" % r.status_code)
+

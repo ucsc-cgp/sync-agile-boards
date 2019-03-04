@@ -16,7 +16,6 @@ class GitHubIssue(Issue):
         :param github: a GitHub instance with the necessary url and login credentials
         """
         super().__init__()
-        print(key, repo_name)
 
         self.url = get_access_params('github')['options']['server']
         self.token = get_access_params('github')['api_token']
@@ -25,8 +24,6 @@ class GitHubIssue(Issue):
 
         if key:
             response = requests.get(self.url + repo_name + "/issues/" + str(key), headers=self.headers).json()
-            pp = pprint.PrettyPrinter()
-            pp.pprint(response)
             if "number" not in response.keys():  # If the key doesn't match any issues, this field won't exist
                 raise ValueError("No issue matching this id and repo was found")
 
