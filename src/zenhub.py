@@ -21,8 +21,7 @@ def main():
     points = sys.argv[3]
     pipeline = sys.argv[4]
 
-    zen = ZenHub(repo_name=repo_name,
-                 issue=issue)
+    zen = ZenHub(repo_name=repo_name, issue=issue)
 
     before_change = json.dumps(zen.get_info())
     print(before_change)
@@ -97,7 +96,8 @@ class ZenHub:
         if response.status_code == 200:
             logger.info(f'Success. {self.issue} now has a story points value of {value}')
         else:
-            logger.info(f'Failed to change the story point value of {self.issue} to {value}')
+            logger.info(f'Error occured when updating issue points. Status Code: {response.status_code}. Reason: {response.reason}')
+            raise RuntimeError(f'Error occured when updating issue points. Status Code: {response.status_code}. Reason: {response.reason}')
 
     def _update_issue_pipeline(self, pipeline, pos=None):
         # Change the pipeline of an issue.
@@ -119,9 +119,10 @@ class ZenHub:
             if response.status_code == 200:
                 logger.info(f'Success. {self.issue} was moved to {pipeline}')
             else:
-                logger.info(f'Failed to move {self.issue} to {pipeline}')
+                logger.info(f'Error occured when moving issue to new pipeline. Status Code: {response.status_code}. Reason: {response.reason}')
+                raise RuntimeError(f'Error occured when moving issue to new pipeline. Status Code: {response.status_code}. Reason: {response.reason}')
         else:
-            logger.error(f'{pipeline} is not a valid pipeline.')
+            logger.info(f'{pipeline} is not a valid pipeline.')
 
     def _update_issue_to_epic(self):
         # Change the issue into an Epic.
@@ -134,11 +135,11 @@ class ZenHub:
         if response.status_code == 200:
             logger.info(f'Success. {self.issue} was converted to an Epic')
         else:
-            logger.info(f'Failed to convert {self.issue} to an Epic')
+            logger.info(f'Error occured when updating issue to epic. Status Code: {response.status_code}. Reason: {response.reason}')
+            raise RuntimeError(f'Error occured when updating issue to epic. Status Code: {response.status_code}. Reason: {response.reason}')
 
     def _get_pipeline_ids(self):
         # Determine the valid pipeline IDs for this repo.
-
         logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
         url = os.path.join(self.access_params['options']['server'], self.repo_id, 'board')
         response = requests.get(url, headers=self.headers)
@@ -149,7 +150,8 @@ class ZenHub:
             ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
             return ids
         else:
-            logger.info(f'Failed to retrieve pipeline ids for {self.repo_name}.')
+            logger.info(f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+            raise RuntimeError(f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
 
     def update_issue(self, points=None, pipeline=None, pipeline_pos=None, to_epic=False):
         """
