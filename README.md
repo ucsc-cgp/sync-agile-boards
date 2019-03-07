@@ -17,7 +17,7 @@ The default location the code searches for the ZenHub token is `~/.zenhub_config
 Create a virtual environment for Python 3 and activate it, install the requirements, and in a terminal run
 
 ```bash
-python src/zenhub.py $REPONAME $STORYNUMBER | jq '.'
+python src/zenhub.py $ORGNAME $REPONAME $STORYNUMBER | jq '.'
 ```
 
 This should return the following output:
