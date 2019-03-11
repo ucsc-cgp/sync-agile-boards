@@ -38,9 +38,12 @@ def get_access_params(mgmnt_sys):
     else:
         raise ValueError(f'{mgmnt_sys} not a valid input.')
 
-    api_token = base64.b64encode(_get_token(path_to_token).encode())
+    if mgmnt_sys in ['jira', 'atlassian']:
+        api_token = base64.b64encode(_get_token(path_to_token).encode()).decode()
+    else:
+        api_token = _get_token(path_to_token)
 
-    return {'options': options, 'api_token': api_token.decode()}  # turn the encoded token back into a string
+    return {'options': options, 'api_token': api_token}
 
 
 def _get_token(path_to_token):
