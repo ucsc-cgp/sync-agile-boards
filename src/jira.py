@@ -1,7 +1,8 @@
-import base64
+import datetime
 import re
 import requests
 
+from settings import default_orgs
 from src.access import get_access_params
 from src.board import Issue
 
@@ -11,7 +12,7 @@ class JiraBoard:
     def __init__(self, project_key: str):
         """Create a Project storing all issues belonging to the provided project key"""
 
-        self.url = get_access_params('jira')['options']['server']
+        self.url = get_access_params('jira')['options']['server'] + default_orgs['jira']
         self.token = get_access_params('jira')['api_token']
         self.headers = {'Authorization': 'Basic ' + self.token}
 
@@ -48,7 +49,7 @@ class JiraBoard:
 
 class JiraIssue(Issue):
 
-    def __init__(self, key=None, response=None):
+    def __init__(self, key: str = None, response: dict = None):
         """
         Create an Issue object from an issue key or from a portion of an API response
 
@@ -57,7 +58,7 @@ class JiraIssue(Issue):
         """
         super().__init__()  # Initiate the super class, Issue
 
-        self.url = get_access_params('jira')['options']['server']
+        self.url = get_access_params('jira')['options']['server'] % (default_orgs['jira'])
         self.token = self.token = get_access_params('jira')['api_token']
         self.headers = {'Authorization': 'Basic ' + self.token}
 
@@ -71,14 +72,14 @@ class JiraIssue(Issue):
 
         if response["fields"]["assignee"]:
             self.assignee = response["fields"]["assignee"]["name"]
-        self.created = response["fields"]["created"]
+        self.created = datetime.datetime.strptime(response["fields"]["created"].split('.')[0], '%Y-%m-%dT%H:%M:%S')
         self.description = response["fields"]["description"]
         self.issue_type = response["fields"]["issuetype"]["name"]
         self.jira_key = response["key"]
         self.parent = response["fields"]["customfield_10008"]  # This custom field holds the epic link
         self.status = response["fields"]["status"]["name"]
         self.summary = response["fields"]["summary"]
-        self.updated = response["fields"]["updated"]
+        self.updated = datetime.datetime.strptime(response["fields"]["updated"].split('.')[0], '%Y-%m-%dT%H:%M:%S')
 
         # Not all issue descriptions have the corresponding github issue listed in them
         self.github_repo_name, self.github_key = self.get_github_equivalent() or (None, None)
@@ -96,7 +97,7 @@ class JiraIssue(Issue):
                 return match_obj.group(1), match_obj.group(2)
             print("No match was found in the description.")
 
-    def dict_format(self):
+    def dict_format(self) -> dict:
         """Describe this issue in a dictionary that can be posted to Jira"""
 
         d = {

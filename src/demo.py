@@ -1,9 +1,12 @@
-from jira import JiraIssue, JiraBoard
-from github import GitHubIssue
+from src.jira import JiraIssue
+from src.github import GitHubIssue
 import sys
 
 
 def main():
+    """Print information about the specified Jira issue, get the corresponding GitHub issue, change its status to
+    In Progress, update the remote Jira issue, and print its information after updating."""
+
     key = sys.argv[1]
 
     i = JiraIssue(key=key)
@@ -22,7 +25,6 @@ def main():
     g = GitHubIssue(key=i.github_key, repo_name=i.github_repo_name)
     g.status = 'In Progress'
     i.update_from(g)
-    print('new i status: ', i.status)
     i.update_remote()
 
     i = JiraIssue(key=key)  # refresh issue information

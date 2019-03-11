@@ -1,10 +1,12 @@
+import datetime
 import unittest
 from unittest.mock import patch
+
 from src.jira import JiraIssue
 
 
 def mocked_response(*args, **kwargs):
-    """Create class to mock response in _get_info method."""
+    """A class to mock a response from a Jira API call"""
 
     class MockResponse:
         def __init__(self, json_data):
@@ -14,7 +16,7 @@ def mocked_response(*args, **kwargs):
             return self.json_data
 
     # Careful, args needs to be a tuple, and that always ends with a "," character in Python!!
-    if args == ('mock-url-search?jql=id=REAL-ISSUE-1',):
+    if args == ('mock-ucsc-cgl/search?jql=id=REAL-ISSUE-1',):
 
         return MockResponse(
         {'issues':  # A condensed API response for an issue
@@ -34,7 +36,7 @@ def mocked_response(*args, **kwargs):
             'id': '15546',
             'key': 'TEST-1'}]})
 
-    elif args == ('mock-url-search?jql=id=REAL-ISSUE-2',):
+    elif args == ('mock-ucsc-cgl/search?jql=id=REAL-ISSUE-2',):
 
         return MockResponse(
         {'issues':  # A condensed API response for a different issue
@@ -53,7 +55,7 @@ def mocked_response(*args, **kwargs):
             'id': '15546',
             'key': 'TEST-2'}]})
 
-    elif args == ('mock-url-search?jql=id=ISSUE-WITH-BLANKS',):
+    elif args == ('mock-ucsc-cgl/search?jql=id=ISSUE-WITH-BLANKS',):
 
         return MockResponse(
         {'issues':  # A condensed API response for a different issue
@@ -70,7 +72,7 @@ def mocked_response(*args, **kwargs):
             'id': '15546',
             'key': 'TEST-2'}]})
 
-    elif args == ('mock-url-search?jql=id=NONEXISTENT-ISSUE',):
+    elif args == ('mock-ucsc-cgl/search?jql=id=NONEXISTENT-ISSUE',):
         return MockResponse(
             {'errorMessages': ["An issue with key 'TEST-100' does not exist for field "
                                "'id'."],
@@ -87,7 +89,7 @@ class TestJiraIssue(unittest.TestCase):
     @patch('src.jira.get_access_params')
     @patch('requests.get', side_effect=mocked_response)
     def setUp(self, get_mocked_response, get_mocked_token):
-        get_mocked_token.return_value = {'options': {'server': 'mock-url-'}, 'api_token': 'mock token'}
+        get_mocked_token.return_value = {'options': {'server': 'mock-%s/'}, 'api_token': 'mock token'}
         self.j = JiraIssue(key='REAL-ISSUE-1')
         self.k = JiraIssue(key='REAL-ISSUE-2')
         self.l = JiraIssue(key='ISSUE-WITH-BLANKS')
@@ -96,12 +98,12 @@ class TestJiraIssue(unittest.TestCase):
         self.assertEqual(self.j.status, "Done")
         self.assertEqual(self.j.issue_type, "Story")
         self.assertEqual(self.j.story_points, 7.0)
-        self.assertEqual(self.j.created, '2019-02-05T14:52:11.501-0800')
+        self.assertEqual(self.j.created, datetime.datetime(2019, 2, 5, 14, 52, 11))
 
     @patch('src.jira.get_access_params')
     @patch('requests.get', side_effect=mocked_response)
     def test_issue_not_found_init(self, get_mocked_response, get_mocked_token):
-        get_mocked_token.return_value = {'options': {'server': 'mock-url-'}, 'api_token': 'mock token'}
+        get_mocked_token.return_value = {'options': {'server': 'mock-%s/'}, 'api_token': 'mock token'}
         with self.assertRaises(ValueError):
             JiraIssue(key='NONEXISTENT-ISSUE')
 

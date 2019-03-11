@@ -166,7 +166,7 @@ class ZenHub:
 
 class ZenHubIssue(Issue):
 
-    def __init__(self, key=None, repo_name=None, response=None):
+    def __init__(self, key: str = None, repo_name: str = None, response: dict = None):
         """
         Create an Issue object from an issue key and repo name or from a portion of an API response
 
@@ -174,7 +174,7 @@ class ZenHubIssue(Issue):
         :param repo_name: If this and key are specified, make an API call searching in this repo
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
-        super().__init__()
+        super().__init__()  # Initiate the parent class, Issue
 
         self.url = get_access_params('zenhub')['options']['server']
         self.token = get_access_params('zenhub')['api_token']
@@ -191,7 +191,7 @@ class ZenHubIssue(Issue):
         if "estimate" in response:
             self.story_points = response['estimate']['value']
 
-    def get_github_equivalent(self):
+    def get_github_equivalent(self) -> 'GitHubIssue':
         """Get the GitHub issue that has the same key as this ZenHub issue"""
 
         return GitHubIssue(key=self.github_key, repo_name=self.repo_name)

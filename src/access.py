@@ -4,7 +4,7 @@ import base64
 import logging
 import os
 from pathlib import Path
-from settings import url_mgmnt_sys, token_path
+from settings import urls, url_mgmnt_sys, token_path
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -32,7 +32,7 @@ def get_access_params(mgmnt_sys):
         path_to_token = token_path['api_token_zenhub']
         logging.info('Accessing ZenHub')
     elif mgmnt_sys in ['git', 'github']:
-        options = {'server': url_mgmnt_sys['github_url']}
+        options = {'server': urls['github_api']}
         path_to_token = token_path['api_token_github']
         logging.info('Accessing GitHub')
     else:
