@@ -37,10 +37,6 @@ def mocked_response(*args, **kwargs):
         raise RuntimeError(args, kwargs)
 
 
-def mocked_token():
-    return 'mock-token'
-
-
 class TestGitHubIssue(unittest.TestCase):
 
     @patch('src.github.get_access_params')
