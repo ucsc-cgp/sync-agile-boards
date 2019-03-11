@@ -1,16 +1,12 @@
 from jira import JiraIssue, JiraBoard
 from github import GitHubIssue
 import sys
-import time
 
 
 def main():
     key = sys.argv[1]
 
-    print(key)
     i = JiraIssue(key=key)
-
-    #p = JiraBoard(key.split("-")[0])
 
     print("Story number: %s" % i.jira_key)
     print("Status: %s" % i.status)
@@ -22,7 +18,6 @@ def main():
     print("Summary: %s" % i.summary)
     print("Repo: %s" % i.github_repo_name)
     print("Key: %s" % i.github_key)
-    #print("\nTotal issues in this project: %d" % len(p.issues))
 
     g = GitHubIssue(key=i.github_key, repo_name=i.github_repo_name)
     g.status = 'In Progress'
