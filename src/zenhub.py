@@ -1,7 +1,7 @@
 #!/usr/env/python3
 from src.access import get_access_params
 from src.utilities import get_repo_id
-from src.board import Issue
+from src.issue import Issue
 from src.github import GitHubIssue
 
 import os

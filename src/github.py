@@ -4,7 +4,7 @@ import re
 
 from settings import default_orgs
 from src.access import get_access_params
-from src.jira import Issue
+from src.issue import Issue
 
 
 class GitHubIssue(Issue):

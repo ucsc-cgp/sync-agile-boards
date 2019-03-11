@@ -4,7 +4,7 @@ import requests
 
 from settings import default_orgs
 from src.access import get_access_params
-from src.board import Issue
+from src.issue import Issue
 
 
 class JiraBoard:
