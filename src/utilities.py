@@ -45,5 +45,5 @@ def _get_repo_url(repo_name, org_name):
     """
 
     base_url = urls['github_api']
-    return  f'{base_url}/{org_name}/{repo_name}'
+    return  f'{base_url}{org_name}/{repo_name}'
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 
 class Issue:
 
@@ -21,7 +19,7 @@ class Issue:
         self.summary = None  # str
         self.updated = None  # datetime object
 
-    def update_from(self, source: Issue):
+    def update_from(self, source: 'Issue'):
         """
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
@@ -32,7 +30,7 @@ class Issue:
                 if source.__dict__[attribute] is not None:
                     self.__dict__[attribute] = source.__dict__[attribute]
 
-    def fill_in_blanks_from(self, source: Issue):
+    def fill_in_blanks_from(self, source: 'Issue'):
         """If a field in the sink issue (self) is blank, fill it with info from the source issue."""
 
         for attribute in source.__dict__.keys():
