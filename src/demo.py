@@ -16,7 +16,7 @@ def main():
     print("Story points: %s" % i.story_points or None)
     print("Created: %s" % i.created)
     print("Updated: %s" % i.updated)
-    print("Assignee: %s" % i.assignee)
+    print("Assignee: %s" % i.assignees)
     print("Description: %s" % i.description)
     print("Summary: %s" % i.summary)
     print("Repo: %s" % i.github_repo_name)
@@ -34,7 +34,7 @@ def main():
     print("Story points: %s" % i.story_points or None)
     print("Created: %s" % i.created)
     print("Updated: %s" % i.updated)
-    print("Assignee: %s" % i.assignee)
+    print("Assignee: %s" % i.assignees)
     print("Description: %s" % i.description)
     print("Summary: %s" % i.summary)
 

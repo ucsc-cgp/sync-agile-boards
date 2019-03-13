@@ -25,7 +25,8 @@ class GitHubIssue(Issue):
         self.github_repo_name = repo_name
 
         if key and repo_name:
-            response = requests.get(self.url + repo_name + "/issues/" + str(key), headers=self.headers).json()
+            response = requests.get(f"{self.url}{repo_name}/issues/{str(key)}", headers=self.headers).json()
+
             if "number" not in response.keys():  # If the key doesn't match any issues, this field won't exist
                 raise ValueError("No issue matching this id and repo was found")
 
@@ -36,12 +37,18 @@ class GitHubIssue(Issue):
         self.created = datetime.datetime.strptime(response['created_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S')
         self.updated = datetime.datetime.strptime(response['updated_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S')
 
-        # TODO: Note that GitHub api responses have both str 'assignee' and str array 'assignees' fields. 'assignee' is
-        #  deprecated. This could cause problems if multiple people are assigned to an issue in GitHub, because the Jira
-        #  assignee field can only hold one person. For now I will assume there is only one assignee in the list.
+        if response['milestone']:
+            self.milestone = response['milestone']['number']
 
-        if response['assignees']:
-            self.assignee = response['assignees'][0]
+        # TODO: Note that GitHub api responses have both dict 'assignee' and dict array 'assignees' fields. 'assignee'
+        #  is deprecated. This could cause problems if multiple people are assigned to an issue in GitHub, because the
+        #  Jira assignee field can only hold one person.
+
+        if response['assignees']:  # this should be filled in
+            self.assignees = [a['login'] for a in response['assignees']]
+
+        elif response['assignee']:  # but just in case
+            self.assignees = [response['assignee']['login']]
 
     def get_jira_equivalent(self) -> str:
         """Find the equivalent Jira issue key if it is listed in the issue text. Issues synced by unito-bot will have
@@ -52,17 +59,15 @@ class GitHubIssue(Issue):
             return match_obj.group(1)
         else:
             print("No jira key was found in the description.")
-            return None
+            return ''
 
     def dict_format(self) -> dict:
         d = {
             "title": self.summary,
             "body": self.description,
-            "assignees": [self.assignee],
-            # "milestone": 1,  # I think this field is unique to GitHub, is it analogous to an epic?
-            "labels": [
-                "bug"
-            ]
+            "assignees": [self.assignees],
+            "milestone": self.milestone,  # I think this field is unique to GitHub, is it analogous to an epic?
+            "labels": []
         }
 
         return d
@@ -70,5 +75,10 @@ class GitHubIssue(Issue):
     def post_new_issue(self):
         """Post this issue to GitHub for the first time. The issue should not already exist."""
 
-        response = requests.post(self.url + self.github_repo_name + "/issues/", headers=self.headers, json=self.dict_format)
+        r = requests.post(f"{self.url}{self.github_repo_name}/issues/", headers=self.headers, json=self.dict_format)
+
+        if r.status_code != 200:
+            print(f"{r.status_code} Error")
+
+        self.github_key = r.json()["id"]  # keep the key that GitHub assigned to this issue when creating it
 

@@ -19,7 +19,18 @@ url_mgmnt_sys = dict(
     )
 
 token_path = dict(
-    api_token_jira='~/.jira_config',
-    api_token_zenhub='~/.zenhub_config',
-    api_token_github='~/.github_config'
+    api_token_jira='~/.sync-agile-board-jira_config',
+    api_token_zenhub='~/.sync-agile-board-zenhub_config',
+    api_token_github='~/.sync-agile-board-github_config'
     )
+
+transitions = {  # Jira API uses these codes to identify status changes
+    'To Do': 11,
+    'In Progress': 21,
+    'Done': 31,
+    'In Review': 41,
+    'Rejected': 51,
+    'New Issue': 61,
+    'Merged': 71
+}
+

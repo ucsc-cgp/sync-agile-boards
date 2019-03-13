@@ -1,13 +1,5 @@
-from src.jira import JiraIssue
-
 
 class Sync:
-
-    @staticmethod
-    def main():
-        a = JiraIssue(key='TEST-20')
-        b = JiraIssue(key='TEST-22')
-        Sync.sync_from_most_current(a, b)
 
     @staticmethod
     def sync_from_specified_source(source, destination):

@@ -1,8 +1,8 @@
 #!/usr/env/python3
 from src.access import get_access_params
-from src.utilities import get_repo_id
 from src.issue import Issue
 from src.github import GitHubIssue
+from src.utilities import get_repo_id
 
 import os
 import sys
@@ -168,7 +168,7 @@ class ZenHubIssue(Issue):
 
     def __init__(self, key: str = None, repo_name: str = None, response: dict = None):
         """
-        Create an Issue object from an issue key and repo name or from a portion of an API response
+        Create an Issue object from an issue key and repo name or from a portion of a ZenHub API response
 
         :param key: If this and repo_name are specified, make an API call searching by this issue key
         :param repo_name: If this and key are specified, make an API call searching in this repo
@@ -183,7 +183,7 @@ class ZenHubIssue(Issue):
 
         if key and repo_name:
             self.github_key = key  # this identifier is used by zenhub and github
-            response = requests.get("%s%s/issues/%s" % (self.url, GitHubIssue.get_repo_id(repo_name), key),
+            response = requests.get(f"{self.url}{get_repo_id(repo_name)}/issues/{key}",
                                     headers=self.headers).json()
 
         self.status = response['pipeline']['name']

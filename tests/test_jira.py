@@ -29,6 +29,7 @@ def mocked_response(*args, **kwargs):
                                '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 25{color}\n',
                 'issuetype': {'id': '10001',
                               'name': 'Story'},
+                'sprint': None,
                 'status': {'id': '10001',
                            'name': 'Done'},
                 'summary': 'Test 1',
@@ -49,6 +50,7 @@ def mocked_response(*args, **kwargs):
                                '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 26{color}\n',
                 'issuetype': {'id': '10001',
                               'name': 'Story'},
+                'sprint': None,
                 'status': {'name': 'In Progress'},
                 'summary': 'Test 2',
                 'updated': '2019-02-20T14:34:08.870-0800'},
@@ -66,6 +68,7 @@ def mocked_response(*args, **kwargs):
                 'customfield_10014': None,
                 'description': 'Repository Name: abc{color}\n┆{color:#707070}Issue Number: 27{color}\n',
                 'issuetype': {'name': 'Story'},
+                'sprint': None,
                 'status': {'name': 'In Progress'},
                 'summary': 'Test 3',
                 'updated': '2019-02-20T14:34:08.870-0800'},
@@ -125,14 +128,14 @@ class TestJiraIssue(unittest.TestCase):
 
     def test_update_from(self):
         self.k.update_from(self.j)
-        self.assertEqual(self.k.assignee, 'aaaaa')
+        self.assertEqual(self.k.assignees, ['aaaaa'])
         self.assertEqual(self.k.story_points, 7.0)
         self.assertEqual(self.k.status, 'Done')
 
     def test_fill_in_blanks_from(self):
         self.l.fill_in_blanks_from(self.j)
         self.assertEqual(self.l.status, 'In Progress')
-        self.assertEqual(self.l.assignee, 'aaaaa')
+        self.assertEqual(self.l.assignees, ['aaaaa'])
         self.assertEqual(self.l.story_points, 7.0)
 
 

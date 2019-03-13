@@ -4,8 +4,9 @@ import requests
 import os
 import errno
 import logging
-from settings import urls
 
+from src.issue import Issue
+from settings import default_orgs, urls
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -13,7 +14,7 @@ FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
 
-def get_repo_id(repo_name, org_name):
+def get_repo_id(repo_name, org_name=default_orgs['github']):
     url = _get_repo_url(repo_name, org_name)
     response = requests.get(url)
     r = {'status_code': response.status_code}
@@ -45,5 +46,49 @@ def _get_repo_url(repo_name, org_name):
     """
 
     base_url = urls['github_api']
-    return  f'{base_url}{org_name}/{repo_name}'
+    return f'{base_url}{org_name}/{repo_name}'
+
+
+def get_zenhub_pipeline(i: 'Issue'):
+    backlog_map = {
+        'New Issue': 'New Issue',
+        'Icebox': 'Icebox',
+        'To Do': 'Epic',
+        'In Progress': 'Product Backlog',
+        'In Review': 'Product Backlog',
+        'Merged': 'Product Backlog',
+        'Done': 'Done',
+        'Closed': 'Closed'
+    }
+    sprint_map = {
+        'New Issue': 'New Issue',
+        'To Do': 'Sprint Backlog',
+        'In Progress': 'In Progress',
+        'In Review': 'Review/QA',
+        'Merged': 'Merged',
+        'Done': 'Done',
+        'Rejected': 'Closed'
+    }
+    if i.jira_sprint is None:  # issue is in the backlog
+        return backlog_map[i.status]
+    else:
+        return sprint_map[i.status]
+
+
+def get_jira_status(i: 'Issue'):
+    map = {
+        'New Issues': 'New Issue',
+        'Product Backlog': 'To Do',
+        'Icebox': 'Rejected',  # ??
+        'Sprint Backlog': 'To Do',
+        'In Progress': 'In Progress',
+        'Review/QA': 'In Review',
+        'Merged': 'Merged',
+        'Done': 'Done',
+        'Closed': 'Done',
+        'Epic': 'To Do'
+    }
+
+    return map[i.status]
+
 
