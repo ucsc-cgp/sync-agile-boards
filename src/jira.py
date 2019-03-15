@@ -62,11 +62,12 @@ class JiraIssue(Issue):
         super().__init__()  # Initiate the super class, Issue
 
         self.url = get_access_params('jira')['options']['server'] % (default_orgs['jira'])
-        self.token = self.token = get_access_params('jira')['api_token']
-        self.headers = {'Authorization': 'Basic ' + self.token}
+        self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
 
         if key:
             r = requests.get(f"{self.url}search?jql=id={key}", headers=self.headers).json()
+            pp = pprint.PrettyPrinter()
+            pp.pprint(r)
 
             if "issues" in r.keys():  # If the key doesn't match any issues, this will be an empty list
                 response = r["issues"][0]  # Get the one and only issue in the response
@@ -174,3 +175,4 @@ class JiraIssue(Issue):
 
         if r.status_code != 204:  # HTTP 204 No content on success
             print(f"{r.status_code} Error")
+

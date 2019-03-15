@@ -178,28 +178,59 @@ class ZenHubIssue(Issue):
         super().__init__()  # Initiate the parent class, Issue
 
         self.url = get_access_params('zenhub')['options']['server']
-        self.token = get_access_params('zenhub')['api_token']
-        self.headers = {'X-Authentication-Token': self.token}
+        self.headers = {'X-Authentication-Token': get_access_params('zenhub')['api_token']}
         self.github_repo_name = repo_name
         self.repo_id = get_repo_id(repo_name)['repo_id']
 
         if key and repo_name:
             self.github_key = key  # this identifier is used by zenhub and github
-            response = requests.get(f"{self.url}{self.repo_id}/issues/{key}",
-                                    headers=self.headers).json()
+            response = requests.get(f"{self.url}{self.repo_id}/issues/{key}", headers=self.headers).json()
 
         self.pipeline = response['pipeline']['name']
         self.jira_status = get_jira_status(self)
 
+        if response['is_epic'] is True:
+            self.get_epic_children()  # Fill in the self.children field
+
         if "estimate" in response:
             self.story_points = response['estimate']['value']
 
-        self.update_from(self.get_github_equivalent())
+        # Fill in the missing information for this issue that's in GitHub but not ZenHub
+        self.update_from(GitHubIssue(key=self.github_key, repo_name=self.github_repo_name))
 
-    def get_github_equivalent(self) -> 'GitHubIssue':
-        """Get the GitHub issue that has the same key as this ZenHub issue"""
+    def get_epic_children(self):
+        """Fill in the self.children field with all issues that belong to this epic. Self must be an epic."""
 
-        return GitHubIssue(key=self.github_key, repo_name=self.github_repo_name)
+        r = requests.get(f'{self.url}{self.repo_id}/epics/{self.github_key}', headers=self.headers).json()
+        self.children = [i['issue_number']for i in r['issues']]
+
+    def add_to_epic(self, epic_key: str):
+        """Add this issue to an existing epic in ZenHub. ZenHub issues can belong to multiple epics."""
+
+        content = {
+            "add_issues": [
+                {"repo_id": self.repo_id, "issue_number": self.github_key}
+            ]
+        }
+
+        r = requests.post(f'{self.url}{self.repo_id}/epics/{epic_key}/update_issues', headers=self.headers,
+                          json=content).json()
+
+        print(r)
+
+    def remove_from_epic(self, epic_key: str):
+        """Remove this issue from an existing epic in ZenHub"""
+
+        content = {
+            "remove_issues":[
+                {"repo_id": self.repo_id, "issue_number": self.github_key}
+            ]
+        }
+
+        r = requests.post(f'{self.url}{self.repo_id}/epics/{epic_key}/update_issues', headers=self.headers,
+                          json=content).json()
+
+        print(r)
 
 
 if __name__ == '__main__':

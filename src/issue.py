@@ -3,11 +3,11 @@ class Issue:
 
     def __init__(self):
         self.url = None  # str
-        self.token = None  # str
         self.headers = None  # dict[str, str]
 
         self.assignees = None  # list[str]
         self.created = None  # datetime object
+
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by zenhub and github
         self.github_repo_name = None  # str
@@ -15,12 +15,18 @@ class Issue:
         self.jira_key = None  # str, this identifier is only used by jira
         self.jira_sprint = None  # str
         self.milestone = None  # int, github's equivalent of sprints?
-        self.parent = None  # str, the epic that this issue is a sub-task of
+
         self.pipeline = None  # str, issue state in zenhub
         self.status = None  # str, issue state in jira
         self.story_points = None  # int
         self.summary = None  # str
         self.updated = None  # datetime object
+
+        # TODO issues in the Jira API know if they're an epic, and what their parent epic is, if any. Issues in the
+        #  ZenHub API only know if they're an epic or not. If so, another API call can be made to find all their
+        #  children issues. These need to be coordinated somehow.
+        self.parent = None  # str, the epic that this issue is a sub-task of
+        self.children = None  # list[str], if this is an epic, lists issues belonging to it
 
     def update_from(self, source: 'Issue'):
         """
@@ -29,7 +35,6 @@ class Issue:
         """
         # TODO should be able to update description while leaving issue link intact
         self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token', 'description']})
-
 
     def fill_in_blanks_from(self, source: 'Issue'):
         """If a field in the sink issue (self) is blank, fill it with info from the source issue."""

@@ -21,8 +21,7 @@ class GitHubIssue(Issue):
         super().__init__()
 
         self.url = get_access_params('github')['options']['server'] + default_orgs['github'] + "/"
-        self.token = get_access_params('github')['api_token']
-        self.headers = {'Authorization': 'token ' + self.token}
+        self.headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
         self.github_repo_name = repo_name
 
         if key and repo_name:

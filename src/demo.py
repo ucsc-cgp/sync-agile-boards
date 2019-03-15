@@ -14,7 +14,7 @@ def main():
 
     print(f"Story number: {i.jira_key}")
     print(f"Summary: {i.summary}")
-    print(f"Status: {i.jira_status}")
+    print(f"Status: {i.status}")
     print(f"Story points: {i.story_points or None}")
     print(f"Created: {i.created}")
     print(f"Updated: {i.updated}")
@@ -33,7 +33,7 @@ def main():
     print("After updating:")
     print(f"Story number: {i.jira_key}")
     print(f"Summary: {i.summary}")
-    print(f"Status: {i.jira_status}")
+    print(f"Status: {i.status}")
     print(f"Story points: {i.story_points or None}")
     print(f"Created: {i.created}")
     print(f"Updated: {i.updated}")
