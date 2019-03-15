@@ -2,8 +2,9 @@
 from src.access import get_access_params
 from src.issue import Issue
 from src.github import GitHubIssue
-from src.utilities import get_repo_id
+from src.utilities import get_repo_id, get_jira_status
 
+import pprint
 import os
 import sys
 import logging
@@ -42,7 +43,7 @@ class ZenHub:
     def get_info(self):
         url = self._generate_url()
         logger.info(f'Getting pipeline, storypoints and timestamp for story {self.issue} in repo {self.repo_name}')
-        response = requests.get(url, headers=self.headers, verify=False)
+        response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             data = response.json()
             pipeline = data['pipeline']['name']
@@ -67,21 +68,106 @@ class ZenHub:
         _url = self.access_params['options']['server']
         return os.path.join(_url, self.repo_id, 'issues', self.issue)
 
+    def _get_pipeline_ids(self):
+        # Determine the valid pipeline IDs for this repo.
+        logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
+        response = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
+
+        if response.status_code == 200:
+            logger.info(f'Successfully retrieved pipeline ids for {self.repo_name}.')
+            data = response.json()
+            ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
+            return ids
+        else:
+            logger.info(
+                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+            raise RuntimeError(
+                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+
+
+class ZenHubIssue(Issue):
+
+    def __init__(self, key: str = None, repo: str = None, org: str = None, response: dict = None):
+        """
+        Create an Issue object from an issue key and repo name or from a portion of a ZenHub API response
+
+        :param key: If this and repo_name are specified, make an API call searching by this issue key
+        :param repo: If this and key are specified, make an API call searching in this repo
+        :param org: The organization to which the repo belongs, e.g. ucsc-cgp
+        :param response: If specified, don't make a new API call but use this response from an earlier one
+        """
+
+        super().__init__()  # Initiate the parent class, Issue
+
+        self.url = get_access_params('zenhub')['options']['server']
+        self.headers = {'Content-Type': 'application/json',
+                        'X-Authentication-Token': get_access_params('zenhub')['api_token']}
+        self.github_repo = repo
+        self.github_org = org
+        self.repo_id = str(get_repo_id(repo)['repo_id'])
+        self.pipeline_ids = self._get_pipeline_ids()
+
+        if key and repo:
+            self.github_key = key  # this identifier is used by zenhub and github
+            response = requests.get(f"{self.url}{self.repo_id}/issues/{key}", headers=self.headers).json()
+
+        self.pipeline = response['pipeline']['name']
+        self.jira_status = get_jira_status(self)
+
+        if response['is_epic'] is True:
+            self.issue_type = 'Epic'
+            self.children = self.get_epic_children()  # Fill in the self.children field
+        else:
+            self.issue_type = 'Issue'
+
+        if "estimate" in response:
+            self.story_points = response['estimate']['value']
+
+        # Fill in the missing information for this issue that's in GitHub but not ZenHub
+        self.update_from(GitHubIssue(key=self.github_key, repo=self.github_repo, org=self.github_org))
+
+    def _get_pipeline_ids(self):
+        # Determine the valid pipeline IDs for this repo.
+        logger.info(f'Retrieving pipeline ids for {self.github_repo}.')
+        response = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
+
+        if response.status_code == 200:
+            logger.info(f'Successfully retrieved pipeline ids for {self.github_repo}.')
+            data = response.json()
+            ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
+            return ids
+        else:
+            logger.info(
+                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+            raise RuntimeError(
+                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+
+    def update_remote(self):
+        # TODO the ZenHub API only supports editing issue points, pipeline, and epic status. Other changes can be made
+        #  thru the GitHub API. Updating the issue in GitHub as well should be incorporated into this method.
+
+        if self.story_points:
+            self._update_issue_points(self.story_points)
+        self._update_issue_pipeline(self.pipeline)
+
+        # g = GitHubIssue(key=self.github_key, repo_name=self.github_repo_name)
+        # g.update_from()
+        # g.update_remote()
+
     def _update_issue_points(self, value):
         # Change the point estimate for the issue.
         logger.info(f'Changing the current value of story points to {value}')
-
-        url = os.path.join(self.url, 'estimate')
         json_dict = {'estimate': value}
-        response = requests.put(url, headers=self.headers, json=json_dict)
 
-        if response.status_code == 200:
-            logger.info(f'Success. {self.issue} now has a story points value of {value}')
+        r = requests.put(f'{self.url}{self.repo_id}/issues/{self.github_key}/estimate', headers=self.headers, json=json_dict)
+
+        if r.status_code == 200:
+            logger.info(f'Success. {self.github_key} now has a story points value of {value}')
         else:
             logger.info(
-                f'Error occured when updating issue points. Status Code: {response.status_code}. Reason: {response.reason}')
+                f'Error occured when updating issue points. Status Code: {r.status_code}. Reason: {r.reason}')
             raise RuntimeError(
-                f'Error occured when updating issue points. Status Code: {response.status_code}. Reason: {response.reason}')
+                f'Error occured when updating issue points. Status Code: {r.status_code}. Reason: {r.reason}')
 
     def _update_issue_pipeline(self, pipeline, pos=None):
         # Change the pipeline of an issue.
@@ -95,13 +181,13 @@ class ZenHub:
         if pipeline in self.pipeline_ids:
             logger.info(f'Changing the current value of pipeline to {pipeline}')
 
-            url = os.path.join(self.url, 'moves')
             json_dict = {'pipeline_id': self.pipeline_ids[pipeline], 'position': pos or 'top'}
 
-            response = requests.post(url, headers=self.headers, json=json_dict)
+            response = requests.post(f'{self.url}{self.repo_id}/issues/{self.github_key}/moves', headers=self.headers,
+                                     json=json_dict)
 
             if response.status_code == 200:
-                logger.info(f'Success. {self.issue} was moved to {pipeline}')
+                logger.info(f'Success. {self.github_key} was moved to {pipeline}')
             else:
                 logger.info(
                     f'Error occured when moving issue to new pipeline. Status Code: {response.status_code}. Reason: {response.reason}')
@@ -110,91 +196,67 @@ class ZenHub:
         else:
             logger.info(f'{pipeline} is not a valid pipeline.')
 
-    def _update_issue_to_epic(self):
+    def update_issue_to_epic(self):
         # Change the issue into an Epic.
-        logger.info(f'Turning {self.issue} into an epic in repo {self.repo_name}')
+        logger.info(f'Turning {self.github_key} into an epic in repo {self.github_key}')
 
-        url = os.path.join(self.url, 'convert_to_epic')
-        json_dict = {'issues': [{'repo_id': self.repo_id, 'issue_number': self.issue}]}
-        response = requests.put(url, headers=self.headers, json=json_dict)
+        json_dict = {'issues': [{'repo_id': self.repo_id, 'issue_number': self.github_key}]}
+        response = requests.post(f'{self.url}{self.repo_id}/issues/{self.github_key}/convert_to_epic', headers=self.headers, json=json_dict)
 
         if response.status_code == 200:
-            logger.info(f'Success. {self.issue} was converted to an Epic')
+            logger.info(f'Success. {self.github_key} was converted to an Epic')
         else:
             logger.info(
                 f'Error occured when updating issue to epic. Status Code: {response.status_code}. Reason: {response.reason}')
             raise RuntimeError(
                 f'Error occured when updating issue to epic. Status Code: {response.status_code}. Reason: {response.reason}')
 
-    def _get_pipeline_ids(self):
-        # Determine the valid pipeline IDs for this repo.
-        logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
-        url = os.path.join(self.access_params['options']['server'], self.repo_id, 'board')
-        response = requests.get(url, headers=self.headers)
+    def update_epic_to_issue(self):
+        """Change this epic to an issue"""
+        logger.info(f'Turning {self.github_key} into an issue in repo {self.github_repo}')
+
+        json_dict = {'issues': [{'repo_id': self.repo_id, 'issue_number': self.github_key}]}
+        print(f'{self.url}{self.repo_id}/epics/{self.github_key}/convert_to_issue')
+        response = requests.put(f'{self.url}{self.repo_id}/epics/{self.github_key}/convert_to_issue', headers=self.headers, json=json_dict)
 
         if response.status_code == 200:
-            logger.info(f'Successfully retrieved pipeline ids for {self.repo_name}.')
-            data = response.json()
-            ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
-            return ids
+            logger.info(f'Success. {self.github_key} was converted to an Epic')
         else:
             logger.info(
-                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+                f'Error occured when updating issue to epic. Status Code: {response.status_code}. Reason: {response.reason}')
             raise RuntimeError(
-                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+                f'Error occured when updating issue to epic. Status Code: {response.status_code}. Reason: {response.reason}')
 
-    def update_issue(self, points=None, pipeline=None, pipeline_pos=None, to_epic=False):
+    def get_epic_children(self):
+        """Fill in the self.children field with all issues that belong to this epic. Self must be an epic."""
+
+        r = requests.get(f'{self.url}{self.repo_id}/epics/{self.github_key}', headers=self.headers).json()
+        return [i['issue_number']for i in r['issues']]
+
+    def change_epic_membership(self, add: str = None, remove: str = None):
         """
-        Update the information of a ZenHub Issue.
-        :param int points: The number of points the issue should have.
-        :param str pipeline: The pipeline the issue should move to.
-        :param str or int pipeline_pos: The issue's position in the new pipeline. 'top', 'bottom', or 0-based index.
-                                        If unspecified, defaults to 'top'.
-        :param bool to_epic: Should the ticket be changed into an Epic?
+        Add a given issue to or remove it from this epic in ZenHub. ZenHub issues can belong to multiple epics.
+        :param add: If specified, add the given issue as a child of self
+        :param remove: If specified, remove the given issue from self epic
         """
-        logger.info(f'Beginning updating {self.issue} in repo {self.repo_name}')
 
-        if points:
-            self._update_issue_points(points)
-        if pipeline:
-            self._update_issue_pipeline(pipeline, pipeline_pos)
-        if to_epic:
-            self._update_issue_to_epic()
+        # IMPORTANT the dictionary values here have to be ints
+        if add:
+            content = {"add_issues": [{"repo_id": int(self.repo_id), "issue_number": int(add)}]}
+        elif remove:
+            content = {"remove_issues": [{"repo_id": int(self.repo_id), "issue_number": int(remove)}]}
+        else:
+            raise ValueError('need to specify an epic to add to or remove from')
 
-        logger.info(f'Finished updating {self.issue} in repo {self.repo_name}')
+        r = requests.post(f'{self.url}{self.repo_id}/epics/{self.github_key}/update_issues', headers=self.headers,
+                          json=content).json()
+        print(r)
 
+    def get_all_epics_in_this_repo(self) -> list:
+        # TODO this should be part of the zenhub board class when that happens
 
-class ZenHubIssue(Issue):
-
-    def __init__(self, key: str = None, repo_name: str = None, response: dict = None):
-        """
-        Create an Issue object from an issue key and repo name or from a portion of a ZenHub API response
-
-        :param key: If this and repo_name are specified, make an API call searching by this issue key
-        :param repo_name: If this and key are specified, make an API call searching in this repo
-        :param response: If specified, don't make a new API call but use this response from an earlier one
-        """
-        super().__init__()  # Initiate the parent class, Issue
-
-        self.url = get_access_params('zenhub')['options']['server']
-        self.token = get_access_params('zenhub')['api_token']
-        self.headers = {'X-Authentication-Token': self.token}
-        self.github_repo_name = repo_name
-
-        if key and repo_name:
-            self.github_key = key  # this identifier is used by zenhub and github
-            response = requests.get(f"{self.url}{get_repo_id(repo_name)}/issues/{key}",
-                                    headers=self.headers).json()
-
-        self.status = response['pipeline']['name']
-
-        if "estimate" in response:
-            self.story_points = response['estimate']['value']
-
-    def get_github_equivalent(self) -> 'GitHubIssue':
-        """Get the GitHub issue that has the same key as this ZenHub issue"""
-
-        return GitHubIssue(key=self.github_key, repo_name=self.repo_name)
+        r = requests.get(f'{self.url}{self.repo_id}/epics', headers=self.headers).json()
+        return [i['issue_number'] for i in r['epic_issues']]
 
 
 if __name__ == '__main__':

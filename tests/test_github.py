@@ -15,7 +15,6 @@ def mocked_response(*args, **kwargs):
         def json(self):
             return self.json_data
 
-
     if args == ('https://mockapi.github.com/repos/SOME_ORG/REPO/issues/REAL-ISSUE',):
 
         return MockResponse(
@@ -64,8 +63,8 @@ class TestGitHubIssue(unittest.TestCase):
     def setUp(self, get_mocked_response, mock_access_params):
         mock_access_params.return_value = {'options': {'server': 'https://mockapi.github.com/repos/'},
                                          'api_token': 'mock token'}
-        self.g = GitHubIssue(key='REAL-ISSUE', org_name='SOME_ORG', repo_name='REPO')
-        self.h = GitHubIssue(key='REAL-ISSUE-2', org_name='SOME_ORG', repo_name='REPO')
+        self.g = GitHubIssue(key='REAL-ISSUE', org='SOME_ORG', repo='REPO')
+        self.h = GitHubIssue(key='REAL-ISSUE-2', org='SOME_ORG', repo='REPO')
 
     def test_happy_init(self):
         self.assertEqual(self.g.summary, "Really an issue")
@@ -74,8 +73,8 @@ class TestGitHubIssue(unittest.TestCase):
         self.assertEqual(self.g.story_points, None)
         self.assertEqual(self.g.created, datetime.datetime(2019, 2, 20, 22, 51, 33))
         self.assertEqual(self.g.github_key, 100)
-        self.assertEqual(self.g.github_repo_name, 'REPO')
-        self.assertEqual(self.g.github_org_name, 'SOME_ORG')
+        self.assertEqual(self.g.github_repo, 'REPO')
+        self.assertEqual(self.g.github_org, 'SOME_ORG')
 
     @patch('src.github.get_access_params')
     @patch('src.github.requests.get', side_effect=mocked_response)
@@ -84,7 +83,7 @@ class TestGitHubIssue(unittest.TestCase):
                                            'api_token': 'mock token'}
 
         with self.assertRaises(ValueError):
-            GitHubIssue(key='NONEXISTENT-ISSUE', repo_name='REPO', org_name='SOME_ORG')
+            GitHubIssue(key='NONEXISTENT-ISSUE', repo='REPO', org='SOME_ORG')
 
     def test_get_github_equivalent(self):
         self.assertEqual(self.g.get_jira_equivalent(), 'ABC-10')

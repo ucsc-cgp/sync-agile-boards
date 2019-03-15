@@ -9,24 +9,24 @@ from src.issue import Issue
 
 class GitHubIssue(Issue):
 
-    def __init__(self, key: str = None, repo_name: str = None, org_name: str = None, response: dict = None):
+    def __init__(self, key: str = None, repo: str = None, org: str = None, response: dict = None):
         """
         Create a GitHub Issue object from an issue key and repo or from a portion of an API response
 
         :param key: If this and repo_name specified, make an API call searching by this issue key
-        :param repo_name: If this and key are specified, make an API call searching in this repo
+        :param repo: If this and key are specified, make an API call searching in this repo
+        :param org: The organization to which the repo belongs, e.g. ucsc-cgp
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
         super().__init__()
 
-        self.url = get_access_params('github')['options']['server'] + org_name + '/'
-        self.token = get_access_params('github')['api_token']
-        self.headers = {'Authorization': 'token ' + self.token}
-        self.github_repo_name = repo_name
-        self.github_org_name = org_name
+        self.url = get_access_params('github')['options']['server'] + org + "/"
+        self.headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
+        self.github_repo = repo
+        self.github_org = org
 
-        if key and repo_name:
-            response = requests.get(f"{self.url}{repo_name}/issues/{str(key)}", headers=self.headers).json()
+        if key and repo:
+            response = requests.get(f"{self.url}{repo}/issues/{str(key)}", headers=self.headers).json()
 
             if 'number' not in response.keys():  # If the key doesn't match any issues, this field won't exist
                 raise ValueError('No issue matching this id and repo was found')
@@ -66,8 +66,8 @@ class GitHubIssue(Issue):
         d = {
             "title": self.summary,
             "body": self.description,
-            "assignees": [self.assignees],
-            "milestone": self.milestone,  # I think this field is unique to GitHub, is it analogous to an epic?
+            # "assignees": [self.assignees],
+            # "milestone": self.milestone,  # I think this field is unique to GitHub, is it analogous to an epic?
             "labels": []
         }
 
@@ -83,3 +83,10 @@ class GitHubIssue(Issue):
 
         self.github_key = r.json()["id"]  # keep the key that GitHub assigned to this issue when creating it
 
+    def update_remote(self):
+        """Update this issue on GitHub. The issue must already exist."""
+
+        r = requests.patch(f'{self.url}{self.github_repo_name}/issues/{self.github_key}', headers=self.headers, json=self.dict_format())
+
+        if r.status_code != 200:
+            print(f"{r.status_code} Error")

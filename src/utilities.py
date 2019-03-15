@@ -17,6 +17,7 @@ logging.basicConfig(format=FORMAT)
 def get_repo_id(repo_name, org_name=default_orgs['github']):
     url = _get_repo_url(repo_name, org_name)
     response = requests.get(url)
+
     r = {'status_code': response.status_code}
     if response.status_code == 200:
         response_json = response.json()
@@ -86,9 +87,9 @@ def get_jira_status(i: 'Issue'):
         'Merged': 'Merged',
         'Done': 'Done',
         'Closed': 'Done',
-        'Epic': 'To Do'
+        'Epics': 'To Do'
     }
 
-    return map[i.status]
+    return map[i.pipeline]
 
 
