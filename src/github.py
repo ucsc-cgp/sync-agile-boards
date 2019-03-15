@@ -6,6 +6,7 @@ from settings import default_orgs
 from src.access import get_access_params
 from src.issue import Issue
 
+import pprint
 
 class GitHubIssue(Issue):
 
@@ -65,8 +66,8 @@ class GitHubIssue(Issue):
         d = {
             "title": self.summary,
             "body": self.description,
-            "assignees": [self.assignees],
-            "milestone": self.milestone,  # I think this field is unique to GitHub, is it analogous to an epic?
+            # "assignees": [self.assignees],
+            # "milestone": self.milestone,  # I think this field is unique to GitHub, is it analogous to an epic?
             "labels": []
         }
 
@@ -82,3 +83,10 @@ class GitHubIssue(Issue):
 
         self.github_key = r.json()["id"]  # keep the key that GitHub assigned to this issue when creating it
 
+    def update_remote(self):
+        """Update this issue on GitHub. The issue must already exist."""
+
+        r = requests.patch(f'{self.url}{self.github_repo_name}/issues/{self.github_key}', headers=self.headers, json=self.dict_format())
+
+        if r.status_code != 200:
+            print(f"{r.status_code} Error")

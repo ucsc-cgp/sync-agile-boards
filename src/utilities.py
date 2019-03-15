@@ -89,6 +89,6 @@ def get_jira_status(i: 'Issue'):
         'Epic': 'To Do'
     }
 
-    return map[i.status]
+    return map[i.pipeline]
 
 

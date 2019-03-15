@@ -2,8 +2,9 @@
 from src.access import get_access_params
 from src.issue import Issue
 from src.github import GitHubIssue
-from src.utilities import get_repo_id
+from src.utilities import get_repo_id, get_jira_status
 
+import pprint
 import os
 import sys
 import logging
@@ -180,21 +181,25 @@ class ZenHubIssue(Issue):
         self.token = get_access_params('zenhub')['api_token']
         self.headers = {'X-Authentication-Token': self.token}
         self.github_repo_name = repo_name
+        self.repo_id = get_repo_id(repo_name)['repo_id']
 
         if key and repo_name:
             self.github_key = key  # this identifier is used by zenhub and github
-            response = requests.get(f"{self.url}{get_repo_id(repo_name)}/issues/{key}",
+            response = requests.get(f"{self.url}{self.repo_id}/issues/{key}",
                                     headers=self.headers).json()
 
-        self.status = response['pipeline']['name']
+        self.pipeline = response['pipeline']['name']
+        self.jira_status = get_jira_status(self)
 
         if "estimate" in response:
             self.story_points = response['estimate']['value']
 
+        self.update_from(self.get_github_equivalent())
+
     def get_github_equivalent(self) -> 'GitHubIssue':
         """Get the GitHub issue that has the same key as this ZenHub issue"""
 
-        return GitHubIssue(key=self.github_key, repo_name=self.repo_name)
+        return GitHubIssue(key=self.github_key, repo_name=self.github_repo_name)
 
 
 if __name__ == '__main__':

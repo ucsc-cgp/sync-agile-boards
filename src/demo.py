@@ -1,5 +1,6 @@
 from src.jira import JiraIssue
 from src.github import GitHubIssue
+from src.zenhub import ZenHubIssue
 import sys
 
 
@@ -11,33 +12,33 @@ def main():
 
     i = JiraIssue(key=key)
 
-    print("Story number: %s" % i.jira_key)
-    print("Status: %s" % i.status)
-    print("Story points: %s" % i.story_points or None)
-    print("Created: %s" % i.created)
-    print("Updated: %s" % i.updated)
-    print("Assignee: %s" % i.assignees)
-    print("Description: %s" % i.description)
-    print("Summary: %s" % i.summary)
-    print("Repo: %s" % i.github_repo_name)
-    print("Key: %s" % i.github_key)
+    print(f"Story number: {i.jira_key}")
+    print(f"Summary: {i.summary}")
+    print(f"Status: {i.jira_status}")
+    print(f"Story points: {i.story_points or None}")
+    print(f"Created: {i.created}")
+    print(f"Updated: {i.updated}")
+    print(f"Assignee: {i.assignees}")
+    print(f"Sprint: {i.jira_sprint}\n\n")
 
-    g = GitHubIssue(key=i.github_key, repo_name=i.github_repo_name)
-    g.status = 'In Progress'
-    i.update_from(g)
+    z = ZenHubIssue(key=i.github_key, repo_name=i.github_repo_name)
+
+    i.update_from(z)
+
+    i.jira_sprint = 58
+
     i.update_remote()
 
     i = JiraIssue(key=key)  # refresh issue information
     print("After updating:")
-    print("Story number: %s" % i.jira_key)
-    print("Status: %s" % i.status)
-    print("Story points: %s" % i.story_points or None)
-    print("Created: %s" % i.created)
-    print("Updated: %s" % i.updated)
-    print("Assignee: %s" % i.assignees)
-    print("Description: %s" % i.description)
-    print("Summary: %s" % i.summary)
-
+    print(f"Story number: {i.jira_key}")
+    print(f"Summary: {i.summary}")
+    print(f"Status: {i.jira_status}")
+    print(f"Story points: {i.story_points or None}")
+    print(f"Created: {i.created}")
+    print(f"Updated: {i.updated}")
+    print(f"Assignee: {i.assignees}")
+    print(f"Sprint: {i.jira_sprint}\n\n")
 
 if __name__ == '__main__':
     main()

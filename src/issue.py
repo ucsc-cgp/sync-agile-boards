@@ -16,7 +16,8 @@ class Issue:
         self.jira_sprint = None  # str
         self.milestone = None  # int, github's equivalent of sprints?
         self.parent = None  # str, the epic that this issue is a sub-task of
-        self.status = None  # str
+        self.pipeline = None  # str, issue state in zenhub
+        self.status = None  # str, issue state in jira
         self.story_points = None  # int
         self.summary = None  # str
         self.updated = None  # datetime object
@@ -26,8 +27,9 @@ class Issue:
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
         """
-
+        # TODO should be able to update description while leaving issue link intact
         self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token', 'description']})
+
 
     def fill_in_blanks_from(self, source: 'Issue'):
         """If a field in the sink issue (self) is blank, fill it with info from the source issue."""

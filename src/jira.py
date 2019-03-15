@@ -5,6 +5,9 @@ import requests
 from settings import default_orgs, transitions
 from src.access import get_access_params
 from src.issue import Issue
+from src.utilities import get_zenhub_pipeline
+
+import pprint
 
 
 class JiraBoard:
@@ -77,11 +80,9 @@ class JiraIssue(Issue):
         self.issue_type = response["fields"]["issuetype"]["name"]
         self.jira_key = response["key"]
 
-        if response["fields"]["sprint"]:
-            self.jira_sprint = response["fields"]["sprint"]["id"]
-
         self.parent = response["fields"]["customfield_10008"]  # This custom field holds the epic link
         self.status = response["fields"]["status"]["name"]
+
         self.summary = response["fields"]["summary"]
         self.updated = datetime.datetime.strptime(response["fields"]["updated"].split('.')[0], '%Y-%m-%dT%H:%M:%S')
 
@@ -90,6 +91,19 @@ class JiraIssue(Issue):
 
         if "customfield_10014" in response["fields"].keys():  # This custom field holds story point values
             self.story_points = response["fields"]["customfield_10014"]
+
+        if 'customfield_10010' in response['fields']:  # This custom field holds sprint information
+            if response['fields']['customfield_10010']:
+                # This field is a list containing a dictionary that's been put in string format.
+                # Sprints can have duplicate names. id is the unique identifier used by the API.
+
+                match_obj = re.search(r'id=(\w*),', response['fields']['customfield_10010'][0])
+                if match_obj:
+                    self.jira_sprint = int(match_obj.group(1))
+                else:
+                    print("No sprint name was found in the sprint field")
+
+        self.pipeline = get_zenhub_pipeline(self)  # This must be done after sprint status is set
 
     def get_github_equivalent(self):
         """Find the equivalent Github issue key and repo name if listed in the issue text. Issues synced by unito-bot
@@ -106,7 +120,6 @@ class JiraIssue(Issue):
 
         d = {
             "fields": {  # these fields can be updated
-                "assignee": {"name": self.assignees[0]},
                 "description": self.description,
                 "summary": self.summary
             }
@@ -114,6 +127,12 @@ class JiraIssue(Issue):
 
         if self.story_points:
             d["fields"]["customfield_10014"] = self.story_points
+
+        if self.assignees:
+            d['fields']['assignee'] = {'name': self.assignees[0]}
+
+        if self.jira_sprint:
+            d['fields']['customfield_10010'] = self.jira_sprint
 
         return d
 
@@ -133,6 +152,7 @@ class JiraIssue(Issue):
 
         if r.status_code != 204:  # HTTP 204 No Content on success
             print(f"{r.status_code} Error")
+            print(r.text)
 
     def post_new_issue(self):
         """Post this issue to Jira for the first time. The issue must not already exist."""
@@ -154,4 +174,3 @@ class JiraIssue(Issue):
 
         if r.status_code != 204:  # HTTP 204 No content on success
             print(f"{r.status_code} Error")
-
