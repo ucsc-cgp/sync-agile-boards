@@ -46,7 +46,7 @@ def mocked_response(*args):
 
 class TestUtilities(unittest.TestCase):
 
-    @patch.dict(urls, {'github_api': 'http://foo.bar'}, clear=True)
+    @patch.dict(urls, {'github_api': 'http://foo.bar/'}, clear=True)
     def test_get_repo_url(self):
         url_expected = 'http://foo.bar/someorg/somerepo'
         url_observed = _get_repo_url('somerepo', 'someorg')

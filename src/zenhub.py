@@ -1,4 +1,8 @@
 #!/usr/env/python3
+from src.access import get_access_params
+from src.issue import Issue
+from src.github import GitHubIssue
+from src.utilities import get_repo_id
 
 import os
 import sys
@@ -6,14 +10,11 @@ import logging
 import requests
 import json
 sys.path.append(".")
-from src.access import get_access_params
-from src.utilities import get_repo_id
-
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
+
 
 def main():
     org_name = sys.argv[1]
@@ -24,7 +25,7 @@ def main():
     print(json.dumps(zen.get_info()))
 
 
-class ZenHub():
+class ZenHub:
 
     def __init__(self, org_name, repo_name, issue):
         self.access_params = get_access_params(mgmnt_sys='zenhub')
@@ -37,7 +38,6 @@ class ZenHub():
         self.repo_id = str(d['repo_id'])
         self.issue = str(issue)
         self.url = self._generate_url()
-
 
     def get_info(self):
         url = self._generate_url()
@@ -162,6 +162,39 @@ class ZenHub():
             self._update_issue_to_epic()
 
         logger.info(f'Finished updating {self.issue} in repo {self.repo_name}')
+
+
+class ZenHubIssue(Issue):
+
+    def __init__(self, key: str = None, repo_name: str = None, response: dict = None):
+        """
+        Create an Issue object from an issue key and repo name or from a portion of a ZenHub API response
+
+        :param key: If this and repo_name are specified, make an API call searching by this issue key
+        :param repo_name: If this and key are specified, make an API call searching in this repo
+        :param response: If specified, don't make a new API call but use this response from an earlier one
+        """
+        super().__init__()  # Initiate the parent class, Issue
+
+        self.url = get_access_params('zenhub')['options']['server']
+        self.token = get_access_params('zenhub')['api_token']
+        self.headers = {'X-Authentication-Token': self.token}
+        self.github_repo_name = repo_name
+
+        if key and repo_name:
+            self.github_key = key  # this identifier is used by zenhub and github
+            response = requests.get(f"{self.url}{get_repo_id(repo_name)}/issues/{key}",
+                                    headers=self.headers).json()
+
+        self.status = response['pipeline']['name']
+
+        if "estimate" in response:
+            self.story_points = response['estimate']['value']
+
+    def get_github_equivalent(self) -> 'GitHubIssue':
+        """Get the GitHub issue that has the same key as this ZenHub issue"""
+
+        return GitHubIssue(key=self.github_key, repo_name=self.repo_name)
 
 
 if __name__ == '__main__':

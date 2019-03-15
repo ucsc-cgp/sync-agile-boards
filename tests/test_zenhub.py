@@ -3,7 +3,6 @@
 import unittest
 from unittest.mock import patch
 from src.zenhub import ZenHub
-from settings import org
 
 
 def mocked_response(*args, **kwargs):

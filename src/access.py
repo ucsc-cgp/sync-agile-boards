@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+import base64
 import logging
 import os
 from pathlib import Path
-from settings import url_mgmnt_sys, token_path
+from settings import urls, url_mgmnt_sys, token_path
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -30,10 +31,17 @@ def get_access_params(mgmnt_sys):
         options = {'server': url_mgmnt_sys['zenhub_url']}
         path_to_token = token_path['api_token_zenhub']
         logging.info('Accessing ZenHub')
+    elif mgmnt_sys in ['git', 'github']:
+        options = {'server': urls['github_api']}
+        path_to_token = token_path['api_token_github']
+        logging.info('Accessing GitHub')
     else:
         raise ValueError(f'{mgmnt_sys} not a valid input.')
 
-    api_token = _get_token(path_to_token)
+    if mgmnt_sys in ['jira', 'atlassian']:
+        api_token = base64.b64encode(_get_token(path_to_token).encode()).decode()
+    else:
+        api_token = _get_token(path_to_token)
 
     return {'options': options, 'api_token': api_token}
 

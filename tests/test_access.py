@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+from unittest.mock import patch
 import os
 from src.access import get_access_params, _get_token
 
@@ -31,11 +32,13 @@ class TestAccess(unittest.TestCase):
         os.remove('/tmp/tok2')
         os.remove('/tmp/tok3')
 
-    def test_get_access_params_check_argsin(self):
+    @patch('src.access._get_token')
+    def test_get_access_params_check_argsin(self, mock_get_token):
+        mock_get_token.return_value = 'mock token'
 
         mgmnt_sys = 'jira'
         access = get_access_params(mgmnt_sys=mgmnt_sys)
-        self.assertDictEqual(access['options'], {'server': 'https://ucsc-cgl.atlassian.net'})
+        self.assertDictEqual(access['options'], {'server': 'https://%s.atlassian.net/rest/api/latest/'})
 
         mgmnt_sys = 'zen'
         access = get_access_params(mgmnt_sys=mgmnt_sys)
