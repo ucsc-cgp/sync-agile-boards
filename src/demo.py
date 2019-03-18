@@ -25,7 +25,7 @@ def main():
 
     i.update_from(z)
 
-    i.jira_sprint = 58
+    #  i.jira_sprint = 58
 
     i.update_remote()
 
@@ -39,6 +39,7 @@ def main():
     print(f"Updated: {i.updated}")
     print(f"Assignee: {i.assignees}")
     print(f"Sprint: {i.jira_sprint}\n\n")
+
 
 if __name__ == '__main__':
     main()

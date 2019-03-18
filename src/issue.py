@@ -2,6 +2,7 @@
 class Issue:
 
     def __init__(self):
+        # TODO can we get rid of any of these attributes? it seems like a lot
         self.url = None  # str
         self.headers = None  # dict[str, str]
 
@@ -11,6 +12,7 @@ class Issue:
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by zenhub and github
         self.github_repo_name = None  # str
+        self.is_epic = None  # bool
         self.issue_type = None  # str
         self.jira_key = None  # str, this identifier is only used by jira
         self.jira_sprint = None  # str
@@ -43,5 +45,11 @@ class Issue:
             if attribute not in ['headers', 'url', 'token', 'description']:  # ignore attributes specific to the source
                 if self.__dict__[attribute] is None:
                     self.__dict__[attribute] = source.__dict__[attribute]  # fill in missing info
+
+    def print(self):
+        """Print out all fields for this issue. For testing purposes"""
+        for attribute, value in self.__dict__.items():
+            print(f'{attribute}: {value}')
+        print('\n')
 
 

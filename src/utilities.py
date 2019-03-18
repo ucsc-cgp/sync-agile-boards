@@ -86,7 +86,7 @@ def get_jira_status(i: 'Issue'):
         'Merged': 'Merged',
         'Done': 'Done',
         'Closed': 'Done',
-        'Epic': 'To Do'
+        'Epics': 'To Do'
     }
 
     return map[i.pipeline]

@@ -66,8 +66,6 @@ class JiraIssue(Issue):
 
         if key:
             r = requests.get(f"{self.url}search?jql=id={key}", headers=self.headers).json()
-            pp = pprint.PrettyPrinter()
-            pp.pprint(r)
 
             if "issues" in r.keys():  # If the key doesn't match any issues, this will be an empty list
                 response = r["issues"][0]  # Get the one and only issue in the response
@@ -168,7 +166,7 @@ class JiraIssue(Issue):
     def add_to_epic(self, epic_key):
         """Make this issue part of a Jira epic. If it is already in an epic, that will be overwritten."""
         issues = {'issues': [self.jira_key]}
-
+        print(f'adding {self.github_key} to epic {epic_key}')
         # This operation seems to work only in the old API version 1.0
         r = requests.post(f"https://ucsc-cgl.atlassian.net/rest/agile/1.0/epic/{epic_key}/issue", json=issues,
                           headers=self.headers)
