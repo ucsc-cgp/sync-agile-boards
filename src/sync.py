@@ -39,15 +39,34 @@ class Sync:
 
         elif source.__class__.__name__ == 'JiraIssue' and destination.__class__.__name__ == 'ZenHubIssue':
             print("from jira to zenhub")
-            if source.parent:  # This issue belongs to an epic
-                j = JiraIssue(key=source.parent)  # use Jira to get corresponding ZenHub parent issue
-                z = ZenHubIssue(key=j.github_key, repo_name=j.github_repo_name)
+            # TODO this is inefficient and the whole board should be done at one time
+            parent_name = None
+            if source.parent:
+                j_parent = JiraIssue(key=source.parent)  # use Jira to get corresponding ZenHub parent issue
+                parent_name = j_parent.github_key
+                z_parent = ZenHubIssue(key=j_parent.github_key, repo_name=j_parent.github_repo_name)
 
-                if z.is_epic is False:  # the issue is an epic in Jira but not yet in ZenHub
-                    z._update_issue_to_epic()  # make it an epic in ZenHub
+            z = ZenHubIssue(key=source.github_key, repo_name=source.github_repo_name)  # is this the same as destination?
+            print("parent: ", parent_name)
+            # Make sure this issue belongs to the correct epic, if any, and no others
+            for e in z.get_all_epics_in_this_repo():
+                print(type(e), type(parent_name))
+                if str(e) == parent_name:  # if issue doesn't belong to any epic, parent=None, and this never gets called
+                    print("yes")
 
-                if destination.github_key not in z.children:  # verify the ZenHub issue being updated belongs to the
-                    destination.add_to_epic(z.github_key)  # correct epic in ZenHub
+                    if z_parent.is_epic is False:  # the issue is an epic in Jira but not yet in ZenHub
+                        z_parent._update_issue_to_epic()  # make it an epic in ZenHub
+
+                    if destination.github_key not in z_parent.children:  # verify the ZenHub issue being updated belongs to the
+                        destination.change_epic_membership(z_parent.github_key, action='add')  # correct epic in ZenHub
+
+                else:
+                    print("no")
+                    epic = ZenHubIssue(key=e, repo_name=z.github_repo_name)
+                    print(destination.github_key)
+                    print("epic children: ", epic.children)
+                    if int(destination.github_key) in epic.children:
+                        destination.change_epic_membership(epic.github_key, action='remove')
 
 
 if __name__ == '__main__':

@@ -238,26 +238,30 @@ class ZenHubIssue(Issue):
         r = requests.get(f'{self.url}{self.repo_id}/epics/{self.github_key}', headers=self.headers).json()
         self.children = [i['issue_number']for i in r['issues']]
 
-    def add_to_epic(self, epic_key: str):
-        """Add this issue to an existing epic in ZenHub. ZenHub issues can belong to multiple epics."""
+    def change_epic_membership(self, epic_key: str, action: str = None):
+        """
+        Add this issue to or remove it from an existing epic in ZenHub. ZenHub issues can belong to multiple epics.
+        :param epic_key: the issue id of the epic to add to/remove from
+        :param action: specify 'add' to add this issue to the epic or 'remove' to remove it
+        """
 
         # IMPORTANT the dictionary values here have to be ints
-        content = {"add_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
+        if action == 'add':
+            content = {"add_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
+        elif action == 'remove':
+            content = {"remove_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
+        else:
+            raise ValueError("param 'action' must be set to 'add' or 'remove'")
 
         r = requests.post(f'{self.url}{self.repo_id}/epics/{epic_key}/update_issues', headers=self.headers,
                           json=content).json()
         print(r)
 
-    def remove_from_epic(self, epic_key: str):
-        """Remove this issue from an existing epic in ZenHub"""
+    def get_all_epics_in_this_repo(self) -> list:
+        # TODO this should be part of the zenhub board class when that happens
 
-        # IMPORTANT the dictionary values here have to be ints
-        content = {"remove_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
-
-        r = requests.post(f'{self.url}{self.repo_id}/epics/{epic_key}/update_issues', headers=self.headers,
-                          json=content).json()
-        print(r)
-
+        r = requests.get(f'{self.url}{self.repo_id}/epics', headers=self.headers).json()
+        return [i['issue_number'] for i in r['epic_issues']]
 
 if __name__ == '__main__':
     main()
