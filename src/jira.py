@@ -185,10 +185,9 @@ class JiraIssue(Issue):
         """If this issue is an epic, get all its children"""
         r = requests.get(f"{self.url}search?jql=cf[10008]='{self.jira_key}'")
 
-        if r.status_code != 204:  # HTTP 200 OK
+        if r.status_code != 200:  # HTTP 200 OK
             print(f"{r.status_code} Error")
 
         children = [i['key'] for i in r.json()['issues']]
-        print(children)
         return children
 

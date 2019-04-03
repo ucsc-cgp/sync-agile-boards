@@ -36,51 +36,43 @@ class Sync:
             if source.children:  # This issue is an epic
                 for issue in source.children:
                     z = ZenHubIssue(key=issue, repo_name=source.repo_name)  # use ZenHub to get name of corresponding Jira issue
+
                     if z.jira_key not in dest_children:  # issue belongs to this epic in ZenHub but not Jira yet
-                        print("adding %s to epic %s" % (z.jira_key, destination.jira_key))
                         j = JiraIssue(key=z.jira_key)
                         j.add_to_epic(destination.jira_key)
+
                     else:  # issue belongs to this epic in both ZenHub and Jira
-                        print("no change needed")
                         dest_children.remove(z.jira_key)  # remove it from the list so we can tell if any are left at the end
 
-                for issue in dest_children:  # any issues left in this list do not belong to the epic in ZenHub,
-                    print("removing %s from epic %s" % (issue, destination.jira_key))
-                    j = JiraIssue(key=issue)  # so we remove them from the epic in Jira
-                    j.remove_from_epic(destination.jira_key)
+            for issue in dest_children:  # any issues left in this list do not belong to the epic in ZenHub,
+                j = JiraIssue(key=issue)  # so we remove them from the epic in Jira
+                j.remove_from_epic(destination.jira_key)
 
         elif source.__class__.__name__ == 'JiraIssue' and destination.__class__.__name__ == 'ZenHubIssue':
-            print("from jira to zenhub")
-            # TODO this is inefficient and the whole board should be done at one time
-            parent_name = None
-            if source.parent:
-                j_parent = JiraIssue(key=source.parent)  # use Jira to get corresponding ZenHub parent issue
-                parent_name = j_parent.github_key
-                z_parent = ZenHubIssue(key=j_parent.github_key, repo_name=j_parent.github_repo_name)
+            source_children = source.get_epic_children()  # list
+            dest_children = copy.deepcopy(destination.children)  # make a copy to be edited
 
-            # Make sure this issue belongs to the correct epic, if any, and no others
-            for e in destination.get_all_epics_in_this_repo():
-                if str(e) == parent_name:  # if issue doesn't belong to any epic, parent=None, and this never gets called
+            if source_children:  # This issue is an epic
+                for issue in source_children:
+                    j = JiraIssue(key=issue)
 
-                    if z_parent.is_epic is False:  # the parent issue is an epic in Jira but not yet in ZenHub
-                        z_parent.update_issue_to_epic()  # make it an epic in ZenHub
+                    if int(j.github_key) not in destination.children:  # issue belongs to this epic in Jira but not ZenHub
+                        z = ZenHubIssue(key=j.github_key, repo_name=destination.repo_name)
+                        z.change_epic_membership(add=destination.github_key)
 
-                    if destination.github_key not in z_parent.children:  # verify the ZenHub issue being updated belongs to the
-                        destination.change_epic_membership(z_parent.github_key, action='add')  # correct epic in ZenHub
+                    else:  # issue belongs to this epic in both Jira and ZenHub
+                        dest_children.remove(int(j.github_key))  # remove it from the list so we can tell if any are left at the end
 
-                else:  # Make sure this issue doesn't belong to any other epics
-                    epic = ZenHubIssue(key=e, repo_name=destination.github_repo_name)
-                    if int(destination.github_key) in epic.children:
-                        destination.change_epic_membership(epic.github_key, action='remove')
-        else:
-            raise ValueError("You should not be syncing two issues of the same type")
+            for issue in dest_children:  # any issues left in this list do not belong to the epic in Jira,
+                z = ZenHubIssue(key=issue, repo_name=destination.repo_name)  # so we remove them from the epic in ZenHub
+                z.change_epic_membership(remove=destination.github_key)
 
 
 if __name__ == '__main__':
-    z = ZenHubIssue(key=7, repo_name='sync-test')
+    z = ZenHubIssue(key='7', repo_name='sync-test')
     j = JiraIssue(key='TEST-42')
     j.print()
-    Sync.sync_from_specified_source(z, j)
+    Sync.sync_from_specified_source(j, z)
     j = JiraIssue(key='TEST-42')
     j.print()
 

@@ -237,22 +237,22 @@ class ZenHubIssue(Issue):
         r = requests.get(f'{self.url}{self.repo_id}/epics/{self.github_key}', headers=self.headers).json()
         self.children = [i['issue_number']for i in r['issues']]
 
-    def change_epic_membership(self, epic_key: str, action: str = None):
+    def change_epic_membership(self, add: str = None, remove: str = None):
         """
         Add this issue to or remove it from an existing epic in ZenHub. ZenHub issues can belong to multiple epics.
-        :param epic_key: the issue id of the epic to add to/remove from
-        :param action: specify 'add' to add this issue to the epic or 'remove' to remove it
+        :param add: If specified, add self to the given epic
+        :param remove: If specified, remove self from the given epic
         """
 
         # IMPORTANT the dictionary values here have to be ints
-        if action == 'add':
+        if add:
             content = {"add_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
-        elif action == 'remove':
+        elif remove:
             content = {"remove_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
         else:
-            raise ValueError("param 'action' must be set to 'add' or 'remove'")
+            raise ValueError('need to specify an epic to add to or remove from')
 
-        r = requests.post(f'{self.url}{self.repo_id}/epics/{epic_key}/update_issues', headers=self.headers,
+        r = requests.post(f'{self.url}{self.repo_id}/epics/{add or remove}/update_issues', headers=self.headers,
                           json=content).json()
         print(r)
 

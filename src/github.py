@@ -53,7 +53,6 @@ class GitHubIssue(Issue):
     def get_jira_equivalent(self) -> str:
         """Find the equivalent Jira issue key if it is listed in the issue text. Issues synced by unito-bot will have
         this information."""
-        print("searching in: " + self.description)
 
         match_obj = re.search(r'Issue Number: (.*)', self.description)  # search for the key in the issue description
         if match_obj:
