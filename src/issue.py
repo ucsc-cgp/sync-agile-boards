@@ -36,7 +36,7 @@ class Issue:
         Fields that are defined in self but are None in source will be left alone.
         """
         # TODO should be able to update description while leaving issue link intact
-        self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token', 'description']})
+        self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token', 'description', 'assignees']})
 
     def fill_in_blanks_from(self, source: 'Issue'):
         """If a field in the sink issue (self) is blank, fill it with info from the source issue."""

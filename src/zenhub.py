@@ -107,13 +107,13 @@ class ZenHubIssue(Issue):
         self.headers = {'Content-Type': 'application/json',
                         'X-Authentication-Token': get_access_params('zenhub')['api_token']}
         self.github_repo_name = repo_name
+        self.repo_name = repo_name
         self.repo_id = str(get_repo_id(repo_name)['repo_id'])
         self.pipeline_ids = self._get_pipeline_ids()
 
         if key and repo_name:
             self.github_key = key  # this identifier is used by zenhub and github
             response = requests.get(f"{self.url}{self.repo_id}/issues/{key}", headers=self.headers).json()
-            #print(response)
 
         self.pipeline = response['pipeline']['name']
         self.jira_status = get_jira_status(self)
@@ -153,7 +153,6 @@ class ZenHubIssue(Issue):
         if self.story_points:
             self._update_issue_points(self.story_points)
         self._update_issue_pipeline(self.pipeline)
-
 
         # g = GitHubIssue(key=self.github_key, repo_name=self.github_repo_name)
         # g.update_from()
@@ -201,7 +200,7 @@ class ZenHubIssue(Issue):
         else:
             logger.info(f'{pipeline} is not a valid pipeline.')
 
-    def _update_issue_to_epic(self):
+    def update_issue_to_epic(self):
         # Change the issue into an Epic.
         logger.info(f'Turning {self.github_key} into an epic in repo {self.github_key}')
 
@@ -216,7 +215,7 @@ class ZenHubIssue(Issue):
             raise RuntimeError(
                 f'Error occured when updating issue to epic. Status Code: {response.status_code}. Reason: {response.reason}')
 
-    def _update_epic_to_issue(self):
+    def update_epic_to_issue(self):
         """Change this epic to an issue"""
         logger.info(f'Turning {self.github_key} into an issue in repo {self.github_repo_name}')
 
@@ -262,6 +261,7 @@ class ZenHubIssue(Issue):
 
         r = requests.get(f'{self.url}{self.repo_id}/epics', headers=self.headers).json()
         return [i['issue_number'] for i in r['epic_issues']]
+
 
 if __name__ == '__main__':
     main()
