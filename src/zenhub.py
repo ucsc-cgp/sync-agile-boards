@@ -68,26 +68,21 @@ class ZenHub:
         _url = self.access_params['options']['server']
         return os.path.join(_url, self.repo_id, 'issues', self.issue)
 
+    def _get_pipeline_ids(self):
+        # Determine the valid pipeline IDs for this repo.
+        logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
+        response = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
 
-    def update_issue(self, points=None, pipeline=None, pipeline_pos=None, to_epic=False):
-        """
-        Update the information of a ZenHub Issue.
-        :param int points: The number of points the issue should have.
-        :param str pipeline: The pipeline the issue should move to.
-        :param str or int pipeline_pos: The issue's position in the new pipeline. 'top', 'bottom', or 0-based index.
-                                        If unspecified, defaults to 'top'.
-        :param bool to_epic: Should the ticket be changed into an Epic?
-        """
-        logger.info(f'Beginning updating {self.issue} in repo {self.repo_name}')
-
-        if points:
-            self._update_issue_points(points)
-        if pipeline:
-            self._update_issue_pipeline(pipeline, pipeline_pos)
-        if to_epic:
-            self._update_issue_to_epic()
-
-        logger.info(f'Finished updating {self.issue} in repo {self.repo_name}')
+        if response.status_code == 200:
+            logger.info(f'Successfully retrieved pipeline ids for {self.repo_name}.')
+            data = response.json()
+            ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
+            return ids
+        else:
+            logger.info(
+                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
+            raise RuntimeError(
+                f'Error in retreiving pipeline ids. Status Code: {response.status_code}. Reason: {response.reason}')
 
 
 class ZenHubIssue(Issue):
@@ -108,7 +103,8 @@ class ZenHubIssue(Issue):
                         'X-Authentication-Token': get_access_params('zenhub')['api_token']}
         self.github_repo_name = repo_name
         self.repo_name = repo_name
-        self.repo_id = str(get_repo_id(repo_name)['repo_id'])
+        #self.repo_id = str(get_repo_id(repo_name)['repo_id'])
+        self.repo_id='abc'
         self.pipeline_ids = self._get_pipeline_ids()
 
         if key and repo_name:
@@ -119,10 +115,10 @@ class ZenHubIssue(Issue):
         self.jira_status = get_jira_status(self)
 
         if response['is_epic'] is True:
-            self.is_epic = True
-            self.get_epic_children()  # Fill in the self.children field
+            self.issue_type = 'Epic'
+            self.children = self.get_epic_children()  # Fill in the self.children field
         else:
-            self.is_epic = False
+            self.issue_type = 'Issue'
 
         if "estimate" in response:
             self.story_points = response['estimate']['value']
@@ -235,24 +231,24 @@ class ZenHubIssue(Issue):
         """Fill in the self.children field with all issues that belong to this epic. Self must be an epic."""
 
         r = requests.get(f'{self.url}{self.repo_id}/epics/{self.github_key}', headers=self.headers).json()
-        self.children = [i['issue_number']for i in r['issues']]
+        return [i['issue_number']for i in r['issues']]
 
     def change_epic_membership(self, add: str = None, remove: str = None):
         """
-        Add this issue to or remove it from an existing epic in ZenHub. ZenHub issues can belong to multiple epics.
-        :param add: If specified, add self to the given epic
-        :param remove: If specified, remove self from the given epic
+        Add a given issue to or remove it from this epic in ZenHub. ZenHub issues can belong to multiple epics.
+        :param add: If specified, add the given issue as a child of self
+        :param remove: If specified, remove the given issue from self epic
         """
 
         # IMPORTANT the dictionary values here have to be ints
         if add:
-            content = {"add_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
+            content = {"add_issues": [{"repo_id": int(self.repo_id), "issue_number": int(add)}]}
         elif remove:
-            content = {"remove_issues": [{"repo_id": int(self.repo_id), "issue_number": int(self.github_key)}]}
+            content = {"remove_issues": [{"repo_id": int(self.repo_id), "issue_number": int(remove)}]}
         else:
             raise ValueError('need to specify an epic to add to or remove from')
 
-        r = requests.post(f'{self.url}{self.repo_id}/epics/{add or remove}/update_issues', headers=self.headers,
+        r = requests.post(f'{self.url}{self.repo_id}/epics/{self.github_key}/update_issues', headers=self.headers,
                           json=content).json()
         print(r)
 

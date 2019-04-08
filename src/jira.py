@@ -46,7 +46,6 @@ class JiraBoard:
         r = requests.get(f'{self.url}search?jql=project%20%3D%20{self.key}%20AND%20issuetype%20%3D%20Epic').json()
 
 
-
 class JiraIssue(Issue):
 
     def __init__(self, key: str = None, response: dict = None):
@@ -60,10 +59,11 @@ class JiraIssue(Issue):
 
         self.url = get_access_params('jira')['options']['server'] % (default_orgs['jira'])
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
-
+        print("key: ", key)
         if key:
             r = requests.get(f"{self.url}search?jql=id={key}", headers=self.headers).json()
-
+            pp = pprint.PrettyPrinter()
+            pp.pprint(r)
             if "issues" in r.keys():  # If the key doesn't match any issues, this will be an empty list
                 response = r["issues"][0]  # Get the one and only issue in the response
             else:
@@ -104,7 +104,7 @@ class JiraIssue(Issue):
     def get_github_equivalent(self):
         """Find the equivalent Github issue key and repo name if listed in the issue text. Issues synced by unito-bot
         will have this information."""
-
+        print("description: ", self.description)
         if self.description:
             match_obj = re.search(r'Repository Name: ([\w_-]*).*\n.*Issue Number: ([\w-]*)', self.description)
             if match_obj:
@@ -117,6 +117,7 @@ class JiraIssue(Issue):
         d = {
             "fields": {  # these fields can be updated
                 "description": self.description,
+                "issuetype": {"name": self.issue_type},
                 "summary": self.summary
             }
         }
@@ -160,20 +161,18 @@ class JiraIssue(Issue):
 
         self.jira_key = r.json()["key"]  # keep the key that Jira assigned to this issue when creating it
 
-    def add_to_epic(self, epic_key):
-        """Make this issue part of a Jira epic. If it is already in an epic, that will be overwritten."""
-        issues = {'issues': [self.jira_key]}
-        print(f'adding {self.github_key} to epic {epic_key}')
-        print(self.url)
+    def add_to_this_epic(self, issue_key):
+        """Make the given issue belong to this epic (self). If it is already in an epic, that will be overwritten."""
+        issues = {'issues': [issue_key]}
         old_api_url = self.url.split('api')[0]  # remove 'api/latest' from the url
         # This operation seems to work only in the old API version 1.0
-        r = requests.post(f"{old_api_url}agile/1.0/epic/{epic_key}/issue", json=issues, headers=self.headers)
+        r = requests.post(f"{old_api_url}agile/1.0/epic/{self.jira_key}/issue", json=issues, headers=self.headers)
 
         if r.status_code != 204:  # HTTP 204 No content on success
             print(f"{r.status_code} Error")
 
-    def remove_from_epic(self, epic_key):
-        issues = {'issues': [self.jira_key]}
+    def remove_from_this_epic(self, issue_key):
+        issues = {'issues': [issue_key]}
         old_api_url = self.url.split('api')[0]  # remove 'api/latest' from the url
         # TODO is it a problem that this functionality only exists in the old api version
         r = requests.post(f"{old_api_url}agile/1.0/epic/none/issue", json=issues, headers=self.headers)
@@ -190,4 +189,5 @@ class JiraIssue(Issue):
 
         children = [i['key'] for i in r.json()['issues']]
         return children
+
 

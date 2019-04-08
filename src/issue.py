@@ -10,10 +10,9 @@ class Issue:
         self.created = None  # datetime object
 
         self.description = None  # str
-        self.github_key = None  # str, this identifier is used by zenhub and github
+        self.github_key = None  # str, this identifier is used by ZenHub and github
         self.github_repo_name = None  # str
-        self.is_epic = None  # bool
-        self.issue_type = None  # str
+        self.issue_type = None  # str, for Jira: Epic or Task or Story or Bug, for ZenHub: Epic or Issue
         self.jira_key = None  # str, this identifier is only used by jira
         self.jira_sprint = None  # str
         self.milestone = None  # int, github's equivalent of sprints?

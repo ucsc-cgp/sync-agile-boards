@@ -19,7 +19,7 @@ class GitHubIssue(Issue):
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
         super().__init__()
-
+        print("initializing a real github")
         self.url = get_access_params('github')['options']['server'] + default_orgs['github'] + "/"
         self.headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
         self.github_repo_name = repo_name
