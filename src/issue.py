@@ -10,7 +10,8 @@ class Issue:
         self.created = None  # datetime object
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by zenhub and github
-        self.github_repo_name = None  # str
+        self.github_repo_name = None  # str, this identifier is used by zenhub and github
+        self.github_org_name = None  # str, this identifier is used by zenhub and github
         self.issue_type = None  # str
         self.jira_key = None  # str, this identifier is only used by jira
         self.jira_sprint = None  # str
