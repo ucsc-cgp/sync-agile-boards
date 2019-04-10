@@ -9,7 +9,7 @@ from src.issue import Issue
 
 class GitHubIssue(Issue):
 
-    def __init__(self, key: str = None, repo_name: str = None, response: dict = None):
+    def __init__(self, key: str = None, repo_name: str = None, org_name: str = None, response: dict = None):
         """
         Create a GitHub Issue object from an issue key and repo or from a portion of an API response
 
@@ -19,16 +19,17 @@ class GitHubIssue(Issue):
         """
         super().__init__()
 
-        self.url = get_access_params('github')['options']['server'] + default_orgs['github'] + "/"
+        self.url = get_access_params('github')['options']['server'] + org_name + '/'
         self.token = get_access_params('github')['api_token']
         self.headers = {'Authorization': 'token ' + self.token}
         self.github_repo_name = repo_name
+        self.github_org_name = org_name
 
         if key and repo_name:
             response = requests.get(f"{self.url}{repo_name}/issues/{str(key)}", headers=self.headers).json()
 
-            if "number" not in response.keys():  # If the key doesn't match any issues, this field won't exist
-                raise ValueError("No issue matching this id and repo was found")
+            if 'number' not in response.keys():  # If the key doesn't match any issues, this field won't exist
+                raise ValueError('No issue matching this id and repo was found')
 
         self.description = response['body']
         self.github_key = response['number']
@@ -75,7 +76,7 @@ class GitHubIssue(Issue):
     def post_new_issue(self):
         """Post this issue to GitHub for the first time. The issue should not already exist."""
 
-        r = requests.post(f"{self.url}{self.github_repo_name}/issues/", headers=self.headers, json=self.dict_format)
+        r = requests.post(f'{self.url}{self.github_repo_name}/issues/', headers=self.headers, json=self.dict_format)
 
         if r.status_code != 200:
             print(f"{r.status_code} Error")
