@@ -2,12 +2,10 @@ import datetime
 import re
 import requests
 
-from settings import default_orgs, transitions
+from settings import transitions
 from src.access import get_access_params
 from src.issue import Issue
 from src.utilities import get_zenhub_pipeline
-
-import pprint
 
 
 class JiraBoard:
@@ -48,22 +46,23 @@ class JiraBoard:
 
 class JiraIssue(Issue):
 
-    def __init__(self, key: str = None, response: dict = None):
+    def __init__(self, key: str = None, org: str = None, response: dict = None):
         """
         Create an Issue object from an issue key or from a portion of an API response
 
         :param key: If specified, make an API call searching by this issue key
+        :param org: The organization the issue belongs to, e.g. ucsc-cgl
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
         super().__init__()  # Initiate the super class, Issue
 
-        self.url = get_access_params('jira')['options']['server'] % (default_orgs['jira'])
+        self.url = get_access_params('jira')['options']['server'] % org
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
-        print("key: ", key)
+        self.jira_org = org
+
         if key:
             r = requests.get(f"{self.url}search?jql=id={key}", headers=self.headers).json()
-            pp = pprint.PrettyPrinter()
-            pp.pprint(r)
+
             if "issues" in r.keys():  # If the key doesn't match any issues, this will be an empty list
                 response = r["issues"][0]  # Get the one and only issue in the response
             else:
@@ -104,7 +103,7 @@ class JiraIssue(Issue):
     def get_github_equivalent(self):
         """Find the equivalent Github issue key and repo name if listed in the issue text. Issues synced by unito-bot
         will have this information."""
-        print("description: ", self.description)
+
         if self.description:
             match_obj = re.search(r'Repository Name: ([\w_-]*).*\n.*Issue Number: ([\w-]*)', self.description)
             if match_obj:
@@ -149,7 +148,6 @@ class JiraIssue(Issue):
 
         if r.status_code != 204:  # HTTP 204 No Content on success
             print(f"{r.status_code} Error")
-            print(r.text)
 
     def post_new_issue(self):
         """Post this issue to Jira for the first time. The issue must not already exist."""

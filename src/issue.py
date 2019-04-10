@@ -11,9 +11,11 @@ class Issue:
 
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by ZenHub and github
-        self.github_repo_name = None  # str
+        self.github_repo = None  # str
+        self.github_org = None  # str
         self.issue_type = None  # str, for Jira: Epic or Task or Story or Bug, for ZenHub: Epic or Issue
         self.jira_key = None  # str, this identifier is only used by jira
+        self.jira_org = None  # str
         self.jira_sprint = None  # str
         self.milestone = None  # int, github's equivalent of sprints?
 
@@ -23,9 +25,6 @@ class Issue:
         self.summary = None  # str
         self.updated = None  # datetime object
 
-        # TODO issues in the Jira API know if they're an epic, and what their parent epic is, if any. Issues in the
-        #  ZenHub API only know if they're an epic or not. If so, another API call can be made to find all their
-        #  children issues. These need to be coordinated somehow.
         self.parent = None  # str, the epic that this issue is a sub-task of
         self.children = None  # list[str], if this is an epic, lists issues belonging to it
 

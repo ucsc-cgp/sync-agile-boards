@@ -16,7 +16,7 @@ def mocked_response(*args, **kwargs):
             return self.json_data
 
     # Careful, args needs to be a tuple, and that always ends with a "," character in Python!!
-    if args == ('mock-ucsc-cgp/REPO/issues/REAL-ISSUE',):
+    if args == ('mock-ORG/REPO/issues/REAL-ISSUE',):
 
         return MockResponse(
             {'assignee': None,
@@ -32,7 +32,7 @@ def mocked_response(*args, **kwargs):
              'user': {'login': 'unito-bot'}}
         )
 
-    elif args == ('mock-ucsc-cgp/REPO/issues/REAL-ISSUE-2',):
+    elif args == ('mock-ORG/REPO/issues/REAL-ISSUE-2',):
 
         return MockResponse(
             {'assignee': None,
@@ -48,7 +48,7 @@ def mocked_response(*args, **kwargs):
              'user': {'login': 'unito-bot'}}
         )
 
-    elif args == ('mock-ucsc-cgp/REPO/issues/NONEXISTENT-ISSUE',):
+    elif args == ('mock-ORG/REPO/issues/NONEXISTENT-ISSUE',):
         return MockResponse(
             {'documentation_url': 'https://developer.github.com/v3/issues/#get-a-single-issue',
              'message': 'Not Found'})
@@ -63,8 +63,8 @@ class TestGitHubIssue(unittest.TestCase):
     @patch('requests.get', side_effect=mocked_response)
     def setUp(self, get_mocked_response, get_mocked_token):
         get_mocked_token.return_value = {'options': {'server': 'mock-'}, 'api_token': 'mock token'}
-        self.g = GitHubIssue(key='REAL-ISSUE', repo_name="REPO")
-        self.h = GitHubIssue(key='REAL-ISSUE-2', repo_name="REPO")
+        self.g = GitHubIssue(key='REAL-ISSUE', repo="REPO", org="ORG")
+        self.h = GitHubIssue(key='REAL-ISSUE-2', repo="REPO", org="ORG")
 
     def test_happy_init(self):
         self.assertEqual(self.g.summary, "Really an issue")
@@ -73,14 +73,14 @@ class TestGitHubIssue(unittest.TestCase):
         self.assertEqual(self.g.story_points, None)
         self.assertEqual(self.g.created, datetime.datetime(2019, 2, 20, 22, 51, 33))
         self.assertEqual(self.g.github_key, 100)
-        self.assertEqual(self.g.github_repo_name, 'REPO')
+        self.assertEqual(self.g.github_repo, 'REPO')
 
     @patch('src.github.get_access_params')
     @patch('requests.get', side_effect=mocked_response)
     def test_issue_not_found_init(self, get_mocked_response, get_mocked_token):
         get_mocked_token.return_value = {'options': {'server': 'mock-'}, 'api_token': 'mock token'}
         with self.assertRaises(ValueError):
-            GitHubIssue(key='NONEXISTENT-ISSUE', repo_name='REPO')
+            GitHubIssue(key='NONEXISTENT-ISSUE', repo='REPO', org="ORG")
 
     def test_get_github_equivalent(self):
         self.assertEqual(self.g.get_jira_equivalent(), 'ABC-10')

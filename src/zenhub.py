@@ -43,7 +43,7 @@ class ZenHub:
     def get_info(self):
         url = self._generate_url()
         logger.info(f'Getting pipeline, storypoints and timestamp for story {self.issue} in repo {self.repo_name}')
-        response = requests.get(url, headers=self.headers, verify=False)
+        response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             data = response.json()
             pipeline = data['pipeline']['name']
@@ -87,12 +87,13 @@ class ZenHub:
 
 class ZenHubIssue(Issue):
 
-    def __init__(self, key: str = None, repo_name: str = None, response: dict = None):
+    def __init__(self, key: str = None, repo: str = None, org: str = None, response: dict = None):
         """
         Create an Issue object from an issue key and repo name or from a portion of a ZenHub API response
 
         :param key: If this and repo_name are specified, make an API call searching by this issue key
-        :param repo_name: If this and key are specified, make an API call searching in this repo
+        :param repo: If this and key are specified, make an API call searching in this repo
+        :param org: The organization to which the repo belongs, e.g. ucsc-cgp
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
 
@@ -101,13 +102,12 @@ class ZenHubIssue(Issue):
         self.url = get_access_params('zenhub')['options']['server']
         self.headers = {'Content-Type': 'application/json',
                         'X-Authentication-Token': get_access_params('zenhub')['api_token']}
-        self.github_repo_name = repo_name
-        self.repo_name = repo_name
-        #self.repo_id = str(get_repo_id(repo_name)['repo_id'])
-        self.repo_id='abc'
+        self.github_repo = repo
+        self.github_org = org
+        self.repo_id = str(get_repo_id(repo)['repo_id'])
         self.pipeline_ids = self._get_pipeline_ids()
 
-        if key and repo_name:
+        if key and repo:
             self.github_key = key  # this identifier is used by zenhub and github
             response = requests.get(f"{self.url}{self.repo_id}/issues/{key}", headers=self.headers).json()
 
@@ -124,15 +124,15 @@ class ZenHubIssue(Issue):
             self.story_points = response['estimate']['value']
 
         # Fill in the missing information for this issue that's in GitHub but not ZenHub
-        self.update_from(GitHubIssue(key=self.github_key, repo_name=self.github_repo_name))
+        self.update_from(GitHubIssue(key=self.github_key, repo=self.github_repo, org=self.github_org))
 
     def _get_pipeline_ids(self):
         # Determine the valid pipeline IDs for this repo.
-        logger.info(f'Retrieving pipeline ids for {self.github_repo_name}.')
+        logger.info(f'Retrieving pipeline ids for {self.github_repo}.')
         response = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
 
         if response.status_code == 200:
-            logger.info(f'Successfully retrieved pipeline ids for {self.github_repo_name}.')
+            logger.info(f'Successfully retrieved pipeline ids for {self.github_repo}.')
             data = response.json()
             ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
             return ids
@@ -213,7 +213,7 @@ class ZenHubIssue(Issue):
 
     def update_epic_to_issue(self):
         """Change this epic to an issue"""
-        logger.info(f'Turning {self.github_key} into an issue in repo {self.github_repo_name}')
+        logger.info(f'Turning {self.github_key} into an issue in repo {self.github_repo}')
 
         json_dict = {'issues': [{'repo_id': self.repo_id, 'issue_number': self.github_key}]}
         print(f'{self.url}{self.repo_id}/epics/{self.github_key}/convert_to_issue')

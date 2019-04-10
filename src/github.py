@@ -6,26 +6,27 @@ from settings import default_orgs
 from src.access import get_access_params
 from src.issue import Issue
 
-import pprint
 
 class GitHubIssue(Issue):
 
-    def __init__(self, key: str = None, repo_name: str = None, response: dict = None):
+    def __init__(self, key: str = None, repo: str = None, org: str = None, response: dict = None):
         """
         Create a GitHub Issue object from an issue key and repo or from a portion of an API response
 
         :param key: If this and repo_name specified, make an API call searching by this issue key
-        :param repo_name: If this and key are specified, make an API call searching in this repo
+        :param repo: If this and key are specified, make an API call searching in this repo
+        :param org: The organization to which the repo belongs, e.g. ucsc-cgp
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
         super().__init__()
-        print("initializing a real github")
-        self.url = get_access_params('github')['options']['server'] + default_orgs['github'] + "/"
-        self.headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
-        self.github_repo_name = repo_name
 
-        if key and repo_name:
-            response = requests.get(f"{self.url}{repo_name}/issues/{str(key)}", headers=self.headers).json()
+        self.url = get_access_params('github')['options']['server'] + org + "/"
+        self.headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
+        self.github_repo = repo
+        self.github_org = org
+
+        if key and repo:
+            response = requests.get(f"{self.url}{repo}/issues/{str(key)}", headers=self.headers).json()
 
             if "number" not in response.keys():  # If the key doesn't match any issues, this field won't exist
                 raise ValueError("No issue matching this id and repo was found")
