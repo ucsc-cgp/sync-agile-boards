@@ -52,7 +52,7 @@ class Sync:
 
             if source.issue_type == 'Epic':  # This issue is an epic
                 if sink.issue_type != 'Epic':
-                    sink.update_issue_to_epic()
+                    sink.promote_issue_to_epic()
 
                 for issue in source_children:
                     j = JiraIssue(key=issue, org=source.jira_org)

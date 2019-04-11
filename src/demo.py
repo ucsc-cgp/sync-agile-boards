@@ -1,5 +1,4 @@
 from src.jira import JiraIssue
-from src.github import GitHubIssue
 from src.zenhub import ZenHubIssue
 import sys
 
@@ -10,37 +9,34 @@ def main():
 
     key = sys.argv[1]
 
-    i = JiraIssue(key=key)
+    demo_issue = JiraIssue(key=key)
 
-    print(f"Story number: {i.jira_key}")
-    print(f"Summary: {i.summary}")
-    print(f"Status: {i.status}")
-    print(f"Story points: {i.story_points or None}")
-    print(f"Created: {i.created}")
-    print(f"Updated: {i.updated}")
-    print(f"Assignee: {i.assignees}")
-    print(f"Sprint: {i.jira_sprint}\n\n")
+    print(f'Story number: {demo_issue.jira_key}')
+    print(f'Summary: {demo_issue.summary}')
+    print(f'Status: {demo_issue.status}')
+    print(f'Story points: {demo_issue.story_points or None}')
+    print(f'Created: {demo_issue.created}')
+    print(f'Updated: {demo_issue.updated}')
+    print(f'Assignee: {demo_issue.assignees}')
+    print(f'Sprint: {demo_issue.jira_sprint}\n\n')
 
-    z = ZenHubIssue(key=i.github_key, repo_name=i.github_repo_name)
+    z = ZenHubIssue(key=demo_issue.github_key, repo=demo_issue.github_repo, org='ucsc-cgp')
 
-    i.update_from(z)
+    demo_issue.update_from(z)
 
-    #  i.jira_sprint = 58
+    demo_issue.update_remote()
 
-    i.update_remote()
-
-    i = JiraIssue(key=key)  # refresh issue information
-    print("After updating:")
-    print(f"Story number: {i.jira_key}")
-    print(f"Summary: {i.summary}")
-    print(f"Status: {i.status}")
-    print(f"Story points: {i.story_points or None}")
-    print(f"Created: {i.created}")
-    print(f"Updated: {i.updated}")
-    print(f"Assignee: {i.assignees}")
-    print(f"Sprint: {i.jira_sprint}\n\n")
+    demo_issue = JiraIssue(key=key)  # refresh issue information
+    print('After updating:')
+    print(f'Story number: {demo_issue.jira_key}')
+    print(f'Summary: {demo_issue.summary}')
+    print(f'Status: {demo_issue.status}')
+    print(f'Story points: {demo_issue.story_points or None}')
+    print(f'Created: {demo_issue.created}')
+    print(f'Updated: {demo_issue.updated}')
+    print(f'Assignee: {demo_issue.assignees}')
+    print(f'Sprint: {demo_issue.jira_sprint}\n\n')
 
 
 if __name__ == '__main__':
     main()
-

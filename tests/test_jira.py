@@ -15,8 +15,8 @@ def mocked_response(*args, **kwargs):
         def json(self):
             return self.json_data
 
-    # Careful, args needs to be a tuple, and that always ends with a "," character in Python!!
-    if args == ('mock-ORG/search?jql=id=REAL-ISSUE-1',):
+    # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
+    if args == ('https://mock-org.atlassian.net/search?jql=id=REAL-ISSUE-1',):
 
         return MockResponse(
         {'issues':  # A condensed API response for an issue
@@ -37,7 +37,7 @@ def mocked_response(*args, **kwargs):
             'id': '15546',
             'key': 'TEST-1'}]})
 
-    elif args == ('mock-ORG/search?jql=id=REAL-ISSUE-2',):
+    elif args == ('https://mock-org.atlassian.net/search?jql=id=REAL-ISSUE-2',):
 
         return MockResponse(
         {'issues':  # A condensed API response for a different issue
@@ -57,7 +57,7 @@ def mocked_response(*args, **kwargs):
             'id': '15546',
             'key': 'TEST-2'}]})
 
-    elif args == ('mock-ORG/search?jql=id=ISSUE-WITH-BLANKS',):
+    elif args == ('https://mock-org.atlassian.net/search?jql=id=ISSUE-WITH-BLANKS',):
 
         return MockResponse(
         {'issues':  # A condensed API response for a different issue
@@ -75,10 +75,10 @@ def mocked_response(*args, **kwargs):
             'id': '15546',
             'key': 'TEST-2'}]})
 
-    elif args == ('mock-ORG/search?jql=id=NONEXISTENT-ISSUE',):
+    elif args == ('https://mock-org.atlassian.net/search?jql=id=NONEXISTENT-ISSUE',):
         return MockResponse(
-            {'errorMessages': ["An issue with key 'TEST-100' does not exist for field "
-                               "'id'."],
+            {'errorMessages': ['An issue with key "TEST-100" does not exist for field '
+                               '"id".'],
             'warningMessages': []
             }
         )
@@ -90,25 +90,25 @@ def mocked_response(*args, **kwargs):
 class TestJiraIssue(unittest.TestCase):
 
     @patch('src.jira.get_access_params')
-    @patch('requests.get', side_effect=mocked_response)
+    @patch('src.jira.requests.get', side_effect=mocked_response)
     def setUp(self, get_mocked_response, get_mocked_token):
-        get_mocked_token.return_value = {'options': {'server': 'mock-%s/'}, 'api_token': 'mock token'}
-        self.j = JiraIssue(key='REAL-ISSUE-1', org='ORG')
-        self.k = JiraIssue(key='REAL-ISSUE-2', org='ORG')
-        self.l = JiraIssue(key='ISSUE-WITH-BLANKS', org='ORG')
+        get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
+        self.j = JiraIssue(key='REAL-ISSUE-1', org='org')
+        self.k = JiraIssue(key='REAL-ISSUE-2', org='org')
+        self.l = JiraIssue(key='ISSUE-WITH-BLANKS', org='org')
 
     def test_happy_init(self):
-        self.assertEqual(self.j.status, "Done")
-        self.assertEqual(self.j.issue_type, "Story")
+        self.assertEqual(self.j.status, 'Done')
+        self.assertEqual(self.j.issue_type, 'Story')
         self.assertEqual(self.j.story_points, 7.0)
         self.assertEqual(self.j.created, datetime.datetime(2019, 2, 5, 14, 52, 11))
 
     @patch('src.jira.get_access_params')
-    @patch('requests.get', side_effect=mocked_response)
+    @patch('src.jira.requests.get', side_effect=mocked_response)
     def test_issue_not_found_init(self, get_mocked_response, get_mocked_token):
-        get_mocked_token.return_value = {'options': {'server': 'mock-%s/'}, 'api_token': 'mock token'}
+        get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
         with self.assertRaises(ValueError):
-            JiraIssue(key='NONEXISTENT-ISSUE', org='ORG')
+            JiraIssue(key='NONEXISTENT-ISSUE', org='org')
 
     def test_get_github_equivalent(self):
         self.assertEqual(self.j.get_github_equivalent(), ('abc', '25'))
@@ -116,13 +116,13 @@ class TestJiraIssue(unittest.TestCase):
     def test_dict_format(self):
         d = self.j.dict_format()
         expected_result = {
-            "fields": {
-                "assignee": {"name": 'aaaaa'},
-                "description": 'test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
+            'fields': {
+                'assignee': {'name': 'aaaaa'},
+                'description': 'test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
                                '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 25{color}\n',
-                "summary": 'Test 1',
-                "issuetype": {'name': 'Story'},
-                "customfield_10014": 7.0
+                'summary': 'Test 1',
+                'issuetype': {'name': 'Story'},
+                'customfield_10014': 7.0
             }
         }
         self.assertEqual(d, expected_result)

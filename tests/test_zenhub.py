@@ -18,7 +18,7 @@ def mocked_response(*args, **kwargs):
         def json(self):
             return self.json_data
 
-    # Careful, args needs to be a tuple, and that always ends with a "," character in Python!!
+    # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
     # Happy Path:
     if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',) and \
             kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
@@ -49,7 +49,7 @@ def mocked_response(*args, **kwargs):
     elif '/board' in args[0]:  # The request used for determining pipeline ids in _get_pipeline_ids().
         return MockResponse({'pipelines': [{'id': 1, 'name': 'Done', 'issues': []}, {'id': 2, 'name': 'Icebox', 'issues': []}]}, 200, 'OK')
 
-    elif "https://api.github.com/repos/ucsc-cgp/abc/issues/" in args[0]:  # Mock GitHub issue information
+    elif 'https://api.github.com/repos/ucsc-cgp/abc/issues/' in args[0]:  # Mock GitHub issue information
         match_obj = re.search(r'issues/(\d*)', args[0])
         return MockResponse({
             'assignee': None,
@@ -70,7 +70,6 @@ class TestZenHub(unittest.TestCase):
     def setUp(self):
         self.patch_repo_id = patch('src.zenhub.get_repo_id', return_value={'repo_id': '123456789'})
         self.patch_requests = patch('requests.get', side_effect=mocked_response)
-        self.patch_pipeline = patch('src.zenhub._get_pipeline_ids', return_value={'Icebox': 12345})
         self.patch_token = patch('src.access._get_token', return_value='99999999')
         for p in [self.patch_repo_id, self.patch_requests, self.patch_token]:
             p.start()
@@ -198,7 +197,7 @@ class TestZenHub(unittest.TestCase):
         mock_url_creator.return_value = f'https://api.zenhub.io/p1/repositories/123456789/issues/42/convert_to_epic'
         mock_requests_post.return_value.status_code = 200
 
-        self.zen.update_issue_to_epic()
+        self.zen.promote_issue_to_epic()
 
         mock_requests_post.assert_called()
         request_args = list(mock_requests_post.call_args)

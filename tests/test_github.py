@@ -67,7 +67,7 @@ class TestGitHubIssue(unittest.TestCase):
         self.h = GitHubIssue(key='REAL-ISSUE-2', org='SOME_ORG', repo='REPO')
 
     def test_happy_init(self):
-        self.assertEqual(self.g.summary, "Really an issue")
+        self.assertEqual(self.g.summary, 'Really an issue')
         self.assertEqual(self.g.assignees, ['aaaaa'])
         self.assertEqual(self.g.issue_type, None)
         self.assertEqual(self.g.story_points, None)

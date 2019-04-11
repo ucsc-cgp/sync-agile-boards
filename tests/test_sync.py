@@ -8,7 +8,6 @@ from src.zenhub import ZenHubIssue
 
 
 def side_effect(*args, **kwargs):
-    print("side effect")
     pass
 
 
@@ -26,18 +25,18 @@ def mock_response(url, mock_response, headers):
             return self.json_data
 
     # Mock ZenHub issue information
-    if url == "https://api.zenhub.io/p1/repositories/abc/issues/1":
-        return MockResponse({"estimate": {"value": 2}, "plus_ones": [], "pipeline": {"name": "Review/QA"} , "is_epic": True})
-    elif url == "https://api.zenhub.io/p1/repositories/abc/issues/2":
-        return MockResponse({"estimate": {"value": 2}, "plus_ones": [], "pipeline": {"name": "In Progress"} , "is_epic": False})
-    elif url == "https://api.zenhub.io/p1/repositories/abc/issues/3":
-        return MockResponse({"estimate": {"value": 2}, "plus_ones": [], "pipeline": {"name": "In Progress"} , "is_epic": False})
-    elif url == "https://api.zenhub.io/p1/repositories/abc/issues/4":
-        return MockResponse({"estimate": {"value": 2}, "plus_ones": [], "pipeline": {"name": "In Progress"} , "is_epic": False})
+    if url == 'https://api.zenhub.io/p1/repositories/abc/issues/1':
+        return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'Review/QA'} , 'is_epic': True})
+    elif url == 'https://api.zenhub.io/p1/repositories/abc/issues/2':
+        return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'} , 'is_epic': False})
+    elif url == 'https://api.zenhub.io/p1/repositories/abc/issues/3':
+        return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'} , 'is_epic': False})
+    elif url == 'https://api.zenhub.io/p1/repositories/abc/issues/4':
+        return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'} , 'is_epic': False})
 
     # Mock Jira issue information
     # TODO this could be condensed
-    elif url == "https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-1":
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-1':
         return MockResponse({'issues': [{
             'fields': {
                 'assignee': None,
@@ -52,7 +51,7 @@ def mock_response(url, mock_response, headers):
                 'summary': 'Test 2',
                 'updated': '2019-02-20T14:34:08.870-0800'},
             'key': 'TEST-1'}]})
-    elif url == "https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-2":
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-2':
         return MockResponse({'issues': [{
                 'fields': {
                     'assignee': None,
@@ -67,7 +66,7 @@ def mock_response(url, mock_response, headers):
                     'summary': 'Test 2',
                     'updated': '2019-02-20T14:34:08.870-0800'},
                     'key': 'TEST-2'}]})
-    elif url == "https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-3":
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-3':
         return MockResponse({'issues': [{'fields': {
                     'assignee': None,
                     'created': '2019-02-05T14:52:11.501-0800',
@@ -81,7 +80,7 @@ def mock_response(url, mock_response, headers):
                     'summary': 'Test 2',
                     'updated': '2019-02-20T14:34:08.870-0800'},
                     'key': 'TEST-3'}]})
-    elif url == "https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-4":
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-4':
         return MockResponse({'issues': [{'fields': {
             'assignee': None,
             'created': '2019-02-05T14:52:11.501-0800',
@@ -97,7 +96,7 @@ def mock_response(url, mock_response, headers):
         'key': 'TEST-4'}]})
 
     # Mock GitHub issue information
-    elif "https://api.github.com/repos/ucsc-cgp/abc/issues/" in url:
+    elif 'https://api.github.com/repos/ucsc-cgp/abc/issues/' in url:
         match_obj = re.search(r'issues/(\d*)', url)
         return MockResponse({
             'assignee': None,
@@ -123,7 +122,7 @@ class TestSync(unittest.TestCase):
         self.patch_jira_children = patch('src.jira.JiraIssue.get_epic_children', return_value=['TEST-2', 'TEST-3'])
         self.patch_get_repo_id = patch('src.zenhub.get_repo_id', return_value={'repo_id': 'abc'})
         self.patch_pipeline_ids = patch('src.zenhub.ZenHubIssue._get_pipeline_ids', return_value={'Done': 1})
-        self.patch_requests = patch('requests.get', side_effect=mock_response)
+        self.patch_requests = patch('src.zenhub.requests.get', side_effect=mock_response)
         self.patch_token = patch('src.access._get_token', return_value='xyz')
 
         for p in [self.patch_zenhub_children, self.patch_jira_children, self.patch_get_repo_id, self.patch_pipeline_ids,
