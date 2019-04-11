@@ -7,10 +7,6 @@ from src.sync import Sync
 from src.zenhub import ZenHubIssue
 
 
-def side_effect(*args, **kwargs):
-    pass
-
-
 @patch('requests.Response')
 def mock_response(url, mock_response, headers):
     """This test uses four issues. Issue 1 is an epic. Issue 2 belongs to 1 in Jira but not in ZenHub. Issue 3 belongs

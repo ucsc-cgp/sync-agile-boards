@@ -6,6 +6,7 @@ cryptography==2.5
 defusedxml==0.5.0
 idna==2.8
 jira==2.0.0
+more-itertools=7.0.0
 oauthlib==3.0.1
 pbr==5.1.2
 pycparser==2.19

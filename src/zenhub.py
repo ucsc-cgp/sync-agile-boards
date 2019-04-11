@@ -245,7 +245,6 @@ class ZenHubIssue(Issue):
         r = requests.post(f'{self.url}{self.repo_id}/epics/{self.github_key}/update_issues', headers=self.headers,
                           json=content).json()
 
-
     def get_all_epics_in_this_repo(self) -> list:
         # TODO this should be part of the zenhub board class when that happens
 
