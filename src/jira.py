@@ -86,11 +86,11 @@ class JiraIssue(Issue):
         # Not all issue descriptions have the corresponding github issue listed in them
         self.github_repo_name, self.github_key = self.get_github_equivalent() or (None, None)
 
-        if 'customfield_10014' in response['fields'].keys():  # This custom field holds story point values
-            self.story_points = response['fields']['customfield_10014']
+        if self.CrypticNames.story_points in response['fields'].keys():
+            self.story_points = response['fields'][self.CrypticNames.story_points]
 
-        if 'customfield_10010' in response['fields']:  # This custom field holds sprint information
-            if response['fields']['customfield_10010']:
+        if self.CrypticNames.sprint in response['fields']:  # This custom field holds sprint information
+            if response['fields'][self.CrypticNames.sprint]:
                 # This field is a list containing a dictionary that's been put in string format.
                 # Sprints can have duplicate names. id is the unique identifier used by the API.
 
@@ -101,6 +101,11 @@ class JiraIssue(Issue):
                     print('No sprint name was found in the sprint field')
 
         self.pipeline = get_zenhub_pipeline(self)  # This must be done after sprint status is set
+
+    class CrypticNames:
+        """A class to hold field ids with names that aren't self explanatory"""
+        sprint = 'customfield_10010'
+        story_points = 'customfield_10014'
 
     def get_github_equivalent(self):
         """Find the equivalent Github issue key and repo name if listed in the issue text. Issues synced by unito-bot
