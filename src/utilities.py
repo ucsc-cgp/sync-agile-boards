@@ -16,6 +16,7 @@ logging.basicConfig(format=FORMAT)
 
 def get_repo_id(repo_name, org_name=default_orgs['github']):
     url = _get_repo_url(repo_name, org_name)
+    print(url)
     r = requests.get(url)
 
     response = {'status_code': r.status_code}

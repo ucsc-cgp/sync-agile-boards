@@ -63,10 +63,15 @@ class JiraIssue(Issue):
         self.jira_org = org
 
         if key:
-            r = requests.get(f'{self.url}search?jql=id={key}', headers=self.headers).json()
+            r = requests.get(f'{self.url}search?jql=id={key}', headers=self.headers)
+
+            if r.status_code != 200:
+                raise ValueError(f'{r.status_code} Error: {r.text}')
+            r = r.json()
 
             if 'issues' in r.keys():  # If the key doesn't match any issues, this will be an empty list
                 response = r['issues'][0]  # Get the one and only issue in the response
+
             else:
                 raise ValueError('No issue matching this id was found')
 
@@ -84,7 +89,7 @@ class JiraIssue(Issue):
         self.updated = datetime.datetime.strptime(response['fields']['updated'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
 
         # Not all issue descriptions have the corresponding github issue listed in them
-        self.github_repo_name, self.github_key = self.get_github_equivalent() or (None, None)
+        self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)
 
         if self.CrypticNames.story_points in response['fields'].keys():
             self.story_points = response['fields'][self.CrypticNames.story_points]
@@ -112,7 +117,7 @@ class JiraIssue(Issue):
         will have this information."""
 
         if self.description:
-            match_obj = re.search(r'Repository Name: ([\w_-]*).*\n.*Issue Number: ([\w-]*)', self.description)
+            match_obj = re.search(r'Repository Name: ([\w_-]*)[\s\S]*Issue Number: ([\w-]*)', self.description)
             if match_obj:
                 return match_obj.group(1), match_obj.group(2)
             print('No match was found in the description.')

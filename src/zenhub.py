@@ -138,9 +138,10 @@ class ZenHubIssue(Issue):
 
         else:
             logger.debug(
-                f'Error in retreiving pipeline ids. Status Code: {r.status_code}. Reason: {response.reason}')
+                f'Error in retreiving pipeline ids. Status Code: {r.status_code}. Reason: {r.reason}')
+            print(r.text)
             raise RuntimeError(
-                f'Error in retreiving pipeline ids. Status Code: {r.status_code}. Reason: {response.reason}')
+                f'Error in retreiving pipeline ids. Status Code: {r.status_code}. Reason: {r.reason}')
 
     def update_remote(self):
         # TODO the ZenHub API only supports editing issue points, pipeline, and epic status. Other changes can be made
