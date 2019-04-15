@@ -2,9 +2,34 @@ import datetime
 import requests
 import re
 
-from settings import default_orgs
 from src.access import get_access_params
-from src.issue import Issue
+from src.issue import Board, Issue
+import pprint
+
+
+class GitHubBoard(Board):
+
+    def __init__(self, repo: str = None, org: str = None):
+
+        super().__init__()
+        self.url = get_access_params('github')['options']['server'] + org + '/'
+        self.headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
+
+        self.github_repo = repo
+        self.github_org = org
+        self.issues = dict()
+
+        r = requests.get(f'{self.url}{repo}/issues')
+        if r.status_code != 200:
+            raise ValueError(f'{r.status_code} Error: {r.text}')
+        else:
+            response = r.json()
+
+        for issue_dict in response:
+            self.issues[issue_dict['number']] = GitHubIssue(org=org, r=issue_dict)
+
+        pp = pprint.PrettyPrinter()
+        pp.pprint(self.issues)
 
 
 class GitHubIssue(Issue):
@@ -88,3 +113,7 @@ class GitHubIssue(Issue):
 
         if r.status_code != 200:
             print(f'{r.status_code} Error: {r.reason}')
+
+
+if __name__ == '__main__':
+    g = GitHubBoard(repo='sync-test', org='ucsc-cgp')

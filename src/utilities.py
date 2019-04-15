@@ -5,8 +5,9 @@ import os
 import errno
 import logging
 
+from src.access import get_access_params
 from src.issue import Issue
-from settings import default_orgs, urls
+from settings import urls
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -14,10 +15,10 @@ FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
 
-def get_repo_id(repo_name, org_name=default_orgs['github']):
+def get_repo_id(repo_name, org_name):
     url = _get_repo_url(repo_name, org_name)
-    print(url)
-    r = requests.get(url)
+    headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
+    r = requests.get(url, headers=headers)
 
     response = {'status_code': r.status_code}
     if r.status_code == 200:

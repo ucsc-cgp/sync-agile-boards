@@ -51,3 +51,10 @@ class Issue:
         print('\n')
 
 
+class Board:
+
+    def __init__(self):
+        self.issues = None
+        self.org = None
+        self.repo = None
+

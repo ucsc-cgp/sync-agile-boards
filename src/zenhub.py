@@ -1,15 +1,16 @@
 #!/usr/env/python3
+from settings import board_map
 from src.access import get_access_params
-from src.issue import Issue
+from src.issue import Board, Issue
 from src.github import GitHubIssue
 from src.utilities import get_repo_id, get_jira_status
 
-import pprint
-import os
-import sys
-import logging
-import requests
 import json
+import logging
+import os
+import requests
+import sys
+import pprint
 sys.path.append('.')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -80,9 +81,39 @@ class ZenHub:
             return ids
         else:
             logger.info(
-                f'Error in retreiving pipeline ids. Status Code: {r.status_code}. Reason: {response.reason}')
+                f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.reason}')
             raise RuntimeError(
-                f'Error in retreiving pipeline ids. Status Code: {r.status_code}. Reason: {response.reason}')
+                f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.reason}')
+
+
+class ZenHubBoard(Board):
+
+    def __init__(self, repo: str = None, org: str = None):
+
+        super().__init__()
+        self.url = get_access_params('zenhub')['options']['server']
+        self.headers = {'Content-Type': 'application/json',
+                        'X-Authentication-Token': get_access_params('zenhub')['api_token']}
+
+        self.github_repo = repo
+        self.github_org = org
+        self.repo_id = str(get_repo_id(repo, org)['repo_id'])
+        self.issues = dict()
+        print(f'{self.url}{self.repo_id}/board')
+        #self.jira_org = board_map[org][repo]
+
+        # NOTE this will not get closed issues
+        r = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
+        if r.status_code == 200:
+            response = r.json()
+        else:
+            raise ValueError(f'{r.status_code} Error: {r.text}')
+
+        for pipeline in response['pipelines']:  # ZenHub API returns all open issues sorted by pipeline
+            for issue_dict in pipeline['issues']:
+                issue_dict['pipeline'] = dict(name=pipeline['name'])  # add in this info so it's easy to access later
+                self.issues[issue_dict['issue_number']] = ZenHubIssue(org=self.github_org, repo=self.github_repo,
+                                                                      response=issue_dict)
 
 
 class ZenHubIssue(Issue):
@@ -104,24 +135,35 @@ class ZenHubIssue(Issue):
                         'X-Authentication-Token': get_access_params('zenhub')['api_token']}
         self.github_repo = repo
         self.github_org = org
-        self.repo_id = str(get_repo_id(repo)['repo_id'])
+        self.repo_id = str(get_repo_id(repo, org)['repo_id'])
         self.pipeline_ids = self._get_pipeline_ids()
 
         if key and repo:
-            self.github_key = key  # this identifier is used by zenhub and github
-            r = requests.get(f'{self.url}{self.repo_id}/issues/{key}', headers=self.headers).json()
+            r = requests.get(f'{self.url}{self.repo_id}/issues/{key}', headers=self.headers)
 
-        self.pipeline = r['pipeline']['name']
+            if r.status_code == 200:
+                response = r.json()
+                response['issue_number'] = key
+            else:
+                raise ValueError(f'{r.status_code} Error: {r.text}')
+
+        self.github_key = response['issue_number']  # this identifier is used by zenhub and github
+        print(response)
+        if 'estimate' in response:
+            self.story_points = response['estimate']['value']
+        if 'pipeline' in response:
+            self.pipeline = response['pipeline']['name']
+        else:
+            self.pipeline = 'Closed'  # TODO is this the only case in which the pipeline is not labelled?
+
         self.jira_status = get_jira_status(self)
 
-        if r['is_epic'] is True:
+        if response['is_epic'] is True:
             self.issue_type = 'Epic'
             self.children = self.get_epic_children()  # Fill in the self.children field
         else:
             self.issue_type = 'Issue'
-
-        if 'estimate' in r:
-            self.story_points = r['estimate']['value']
+            self.children = []
 
         # Fill in the missing information for this issue that's in GitHub but not ZenHub
         self.update_from(GitHubIssue(key=self.github_key, repo=self.github_repo, org=self.github_org))
@@ -227,6 +269,7 @@ class ZenHubIssue(Issue):
         """Fill in the self.children field with all issues that belong to this epic. Self must be an epic."""
 
         r = requests.get(f'{self.url}{self.repo_id}/epics/{self.github_key}', headers=self.headers).json()
+        print("children: ", [i['issue_number']for i in r['issues']])
         return [i['issue_number']for i in r['issues']]
 
     def change_epic_membership(self, add: str = None, remove: str = None):
@@ -254,4 +297,4 @@ class ZenHubIssue(Issue):
 
 
 if __name__ == '__main__':
-    main()
+    z = ZenHubBoard(repo='sync-test', org='ucsc-cgp')

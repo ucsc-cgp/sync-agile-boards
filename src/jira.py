@@ -1,26 +1,29 @@
 import datetime
+from more_itertools import first
 import re
 import requests
 
-from more_itertools import first
-from settings import transitions
+from settings import board_map, transitions
 from src.access import get_access_params
-from src.issue import Issue
+from src.issue import Board, Issue
 from src.utilities import get_zenhub_pipeline
 
 
-class JiraBoard:
+class JiraBoard(Board):
 
-    def __init__(self, project_key: str, org: str):
+    def __init__(self, repo: str = None, org: str = None):
         """Create a Project storing all issues belonging to the provided project key"""
 
+        super().__init__()
         self.url = get_access_params('jira')['options']['server'] % org
-        self.token = get_access_params('jira')['api_token']
-        self.headers = {'Authorization': 'Basic ' + self.token}
+        self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
 
-        self.key = project_key
+        self.jira_repo = repo
+        self.jira_org = org
         self.issues = dict()
         self.api_call(0)  # Get information for all issues in the project
+
+        # self.github_org, self.github_repo = board_map[org][repo]
 
     def api_call(self, start):
         """
@@ -30,11 +33,11 @@ class JiraBoard:
         :param start: The index in the results to start at. Always call this function with start=0
         """
 
-        response = requests.get(f'{self.url}search?jql=project={self.key}&startAt={str(start)}',
+        response = requests.get(f'{self.url}search?jql=project={self.jira_repo}&startAt={str(start)}',
                                 headers=self.headers).json()
 
         for i in response['issues']:
-            self.issues[i['key']] = JiraIssue(response=i)
+            self.issues[i['key']] = JiraIssue(response=i, org=self.jira_org)
 
         if response['total'] >= start + response['maxResults']:  # There could be another page of results
             self.api_call(start + response['maxResults'])
@@ -42,7 +45,7 @@ class JiraBoard:
     def get_all_epics(self):
         """Search for issues in this project with issuetype=Epic"""
 
-        r = requests.get(f'{self.url}search?jql=project={self.key} AND issuetype=Epic').json()
+        r = requests.get(f'{self.url}search?jql=project={self.jira_repo} AND issuetype=Epic').json()
         return r
 
 
@@ -57,8 +60,9 @@ class JiraIssue(Issue):
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
         super().__init__()
-
+        print(org)
         self.url = get_access_params('jira')['options']['server'] % org
+        print(self.url)
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
         self.jira_org = org
 
@@ -174,7 +178,7 @@ class JiraIssue(Issue):
     def add_to_this_epic(self, issue_key):
         """Make the given issue belong to this epic (self). If it is already in an epic, that will be overwritten."""
         issues = {'issues': [issue_key]}
-        old_api_url = first(self.url.split('api')) # remove 'api/latest' from the url
+        old_api_url = first(self.url.split('api'))  # remove 'api/latest' from the url
         # This operation seems to work only in the old API version 1.0
         r = requests.post(f'{old_api_url}agile/1.0/epic/{self.jira_key}/issue', json=issues, headers=self.headers)
 
@@ -192,10 +196,12 @@ class JiraIssue(Issue):
 
     def get_epic_children(self):
         """If this issue is an epic, get all its children"""
-        r = requests.get(f"{self.url}search?jql=cf[10008]='{self.jira_key}'")
+        print(f"{self.url}search?jql=cf[10008]='{self.jira_key}'")
+        r = requests.get(f"{self.url}search?jql=cf[10008]='{self.jira_key}'", headers=self.headers)
 
         if r.status_code != 200:  # HTTP 200 OK
-            print(f'{r.status_code} Error: {r.reason}')
-
+            print(f'{r.status_code} Error: {r.text}')
+        print(r.json())
         children = [i['key'] for i in r.json()['issues']]
         return children
+

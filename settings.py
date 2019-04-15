@@ -1,13 +1,10 @@
+# TODO how to map orgs and repos between jira and zenhub?
+
 
 org = {
     'DataBiosphere': ['azul'],
     'ucsc-cgp': ['sync-test']
 }
-
-default_orgs = dict(
-    github='ucsc-cgp',
-    jira='ucsc-cgl'
-)
 
 urls = dict(
     github_api='https://api.github.com/repos/'
@@ -33,4 +30,12 @@ transitions = {  # Jira API uses these codes to identify status changes
     'New Issue': 61,
     'Merged': 71
 }
+
+board_map = {
+    'ucsc-cgp':  # ZenHub to Jira
+        {'sync-test': 'ucsc-cgl'},
+    'ucsc-cgl':  # Jira to ZenHub
+        {'TEST': ('ucsc-cgp', 'sync-test')}
+}
+
 

@@ -1,11 +1,22 @@
 import copy
 
-from src.jira import JiraIssue
-from src.zenhub import ZenHubIssue
+from src.jira import JiraBoard, JiraIssue
+from src.zenhub import ZenHubBoard, ZenHubIssue
 
 
 class Sync:
 
+    @staticmethod
+    def sync_board(source: 'Board', sink: 'Board'):
+
+        if source.__class__.__name__ == 'ZenHubBoard' and sink.__class__.__name__ == 'JiraBoard':
+            for issue in source.issues.values():
+                Sync.sync_from_specified_source(issue, JiraIssue(key=issue.jira_key, org=sink.jira_org))
+        elif source.__class__.__name__ == 'JiraBoard' and sink.__class__.__name__ == 'ZenHubBoard':
+            for issue in source.issues.values():
+                issue.print()
+                Sync.sync_from_specified_source(issue, ZenHubIssue(key=issue.github_key, repo=sink.github_repo, org=sink.github_org))
+                
     @staticmethod
     def sync_from_specified_source(source: 'Issue', destination: 'Issue'):
         destination.update_from(source)
@@ -49,7 +60,8 @@ class Sync:
         elif source.__class__.__name__ == 'JiraIssue' and sink.__class__.__name__ == 'ZenHubIssue':
             source_children = source.get_epic_children()  # list
             dest_children = copy.deepcopy(sink.children)  # make a copy to be edited
-
+            print(sink.children)
+            print("dest children: ", dest_children)
             if source.issue_type == 'Epic':  # This issue is an epic
                 if sink.issue_type != 'Epic':
                     sink.promote_issue_to_epic()
@@ -70,5 +82,11 @@ class Sync:
 
 
 
+if __name__ == '__main__':
+    a = JiraBoard(repo='TEST', org='ucsc-cgl')
+    print(a.url)
+    b = ZenHubBoard(repo='sync-test', org='ucsc-cgp')
+
+    Sync.sync_board(a, b)
 
 
