@@ -14,7 +14,7 @@ urls = dict(
 )
 
 url_mgmnt_sys = dict(
-    jira_url='https://%s.atlassian.net/rest/api/latest/',  # string format character included to be replaced with repo
+    jira_url='https://%s.atlassian.net/rest/api/latest/',  # string format character included to be replaced with org
     zenhub_url='https://api.zenhub.io/p1/repositories/'
     )
 

@@ -16,14 +16,16 @@ logging.basicConfig(format=FORMAT)
 
 def get_repo_id(repo_name, org_name=default_orgs['github']):
     url = _get_repo_url(repo_name, org_name)
-    response = requests.get(url)
-    r = {'status_code': response.status_code}
-    if response.status_code == 200:
-        response_json = response.json()
-        r['repo_id'] = response_json['id']
+    print(url)
+    r = requests.get(url)
+
+    response = {'status_code': r.status_code}
+    if r.status_code == 200:
+        response_json = r.json()
+        response['repo_id'] = response_json['id']
     else:
-        r['repo_id'] = response.reason
-    return r
+        response['repo_id'] = r.reason
+    return response
 
 
 def check_for_git_config(git_config_file):
@@ -42,7 +44,7 @@ def _get_repo_url(repo_name, org_name):
 
     Example:
         If repo_name = 'bar' and org_name is 'foo', this returns
-        "https://api.github.com/repos/foo/bar"
+        'https://api.github.com/repos/foo/bar'
     """
 
     base_url = urls['github_api']
@@ -86,9 +88,9 @@ def get_jira_status(i: 'Issue'):
         'Merged': 'Merged',
         'Done': 'Done',
         'Closed': 'Done',
-        'Epic': 'To Do'
+        'Epics': 'To Do'
     }
 
-    return map[i.status]
+    return map[i.pipeline]
 
 

@@ -20,7 +20,7 @@ def mocked_response(*args):
         def json(self):
             return self.json_data
 
-    # Careful, args needs to be a tuple, and that always ends with a "," character in Python!!
+    # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
     if args == ('https://api.github.com/repos/DataBiosphere/azul',):
         return MockResponse(
             {'id': 42,

@@ -1,5 +1,5 @@
 from src.jira import JiraIssue
-from src.github import GitHubIssue
+from src.zenhub import ZenHubIssue
 import sys
 
 
@@ -9,36 +9,35 @@ def main():
 
     key = sys.argv[1]
 
-    i = JiraIssue(key=key)
+    demo_issue = JiraIssue(key=key, org='ucsc-cgl')
 
-    print("Story number: %s" % i.jira_key)
-    print("Status: %s" % i.status)
-    print("Story points: %s" % i.story_points or None)
-    print("Created: %s" % i.created)
-    print("Updated: %s" % i.updated)
-    print("Assignee: %s" % i.assignees)
-    print("Description: %s" % i.description)
-    print("Summary: %s" % i.summary)
-    print("Repo: %s" % i.github_repo_name)
-    print("Key: %s" % i.github_key)
+    print(f'Story number: {demo_issue.jira_key}')
+    print(f'Summary: {demo_issue.summary}')
+    print(f'Status: {demo_issue.status}')
+    print(f'Story points: {demo_issue.story_points or None}')
+    print(f'Created: {demo_issue.created}')
+    print(f'Updated: {demo_issue.updated}')
+    print(f'Assignee: {demo_issue.assignees}')
+    print(f'Sprint: {demo_issue.jira_sprint}\n\n')
+    print(f'GitHub issue: {demo_issue.github_repo} {demo_issue.github_key}')
 
-    g = GitHubIssue(key=i.github_key, repo_name=i.github_repo_name)
-    g.status = 'In Progress'
-    i.update_from(g)
-    i.update_remote()
+    z = ZenHubIssue(key=demo_issue.github_key, repo=demo_issue.github_repo, org='ucsc-cgp')
 
-    i = JiraIssue(key=key)  # refresh issue information
-    print("After updating:")
-    print("Story number: %s" % i.jira_key)
-    print("Status: %s" % i.status)
-    print("Story points: %s" % i.story_points or None)
-    print("Created: %s" % i.created)
-    print("Updated: %s" % i.updated)
-    print("Assignee: %s" % i.assignees)
-    print("Description: %s" % i.description)
-    print("Summary: %s" % i.summary)
+    demo_issue.update_from(z)
+
+    demo_issue.update_remote()
+
+    demo_issue = JiraIssue(key=key, org='ucsc-cgl')  # refresh issue information
+    print('After updating:')
+    print(f'Story number: {demo_issue.jira_key}')
+    print(f'Summary: {demo_issue.summary}')
+    print(f'Status: {demo_issue.status}')
+    print(f'Story points: {demo_issue.story_points or None}')
+    print(f'Created: {demo_issue.created}')
+    print(f'Updated: {demo_issue.updated}')
+    print(f'Assignee: {demo_issue.assignees}')
+    print(f'Sprint: {demo_issue.jira_sprint}\n\n')
 
 
 if __name__ == '__main__':
     main()
-
