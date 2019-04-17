@@ -18,19 +18,27 @@ class GitHubBoard(Board):
         self.github_repo = repo
         self.github_org = org
         self.issues = dict()
+        self.api_call(1)
 
-        r = requests.get(f'{self.url}{repo}/issues')
+    def api_call(self, start):
+        """Make API requests until all results have been retrieved. GitHub API responses are split into pages of 30 results"""
+
+        r = requests.get(f'{self.url}{self.github_repo}/issues?state=all&page={start}', headers=self.headers)
+
         if r.status_code != 200:
             raise ValueError(f'{r.status_code} Error: {r.text}')
         else:
             response = r.json()
+            # pp = pprint.PrettyPrinter()
+            # pp.pprint(response)
+            print(r.headers)
 
         for issue_dict in response:
-            self.issues[issue_dict['number']] = GitHubIssue(org=org, r=issue_dict)
+            self.issues[str(issue_dict['number'])] = GitHubIssue(org=self.github_org, r=issue_dict)
 
-        pp = pprint.PrettyPrinter()
-        pp.pprint(self.issues)
-
+        # The 'Link' field in the header gives a link to the next page labelled with rel="next', if there is one
+        if 'rel="next"' in r.headers['Link']:
+            self.api_call(start + 1)
 
 class GitHubIssue(Issue):
 
@@ -84,7 +92,7 @@ class GitHubIssue(Issue):
         if match_obj:
             return match_obj.group(1)
         else:
-            print('No jira key was found in the description.')
+            print(self.github_key, 'No jira key was found in the description.')
             return ''
 
     def dict_format(self) -> dict:
@@ -117,3 +125,4 @@ class GitHubIssue(Issue):
 
 if __name__ == '__main__':
     g = GitHubBoard(repo='sync-test', org='ucsc-cgp')
+    print(g.issues)

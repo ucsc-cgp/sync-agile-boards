@@ -9,7 +9,7 @@ Use token-based authorization to access the ZenHub, GitHub, and Jira APIs. Go to
 * https://id.atlassian.com/manage/api-tokens to get the Jira token
 
 The default location the code searches for the tokens are `~/.zenhub_config`, `~/.github_config`, and `~/.jira_config`, respectively.
-Note that the Jira config file must contain both username and token in the format `you@gmail.com:your-token`. For ZenHub and GitHub only the token is necessary.
+Note that the Jira config file must contain both username and token base 64 encoded in the format `you@gmail.com:your-token`. For ZenHub and GitHub only the unencoded token is necessary.
 
 ## Return information from ZenHub
 

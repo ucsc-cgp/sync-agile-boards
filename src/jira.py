@@ -38,6 +38,7 @@ class JiraBoard(Board):
 
         for i in response['issues']:
             self.issues[i['key']] = JiraIssue(response=i, org=self.jira_org)
+            self.issues[i['key']].jira_board = self  # Store a reference to the Board object this issue belongs to
 
         if response['total'] >= start + response['maxResults']:  # There could be another page of results
             self.api_call(start + response['maxResults'])
@@ -60,9 +61,8 @@ class JiraIssue(Issue):
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
         super().__init__()
-        print(org)
+
         self.url = get_access_params('jira')['options']['server'] % org
-        print(self.url)
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
         self.jira_org = org
 
@@ -124,7 +124,7 @@ class JiraIssue(Issue):
             match_obj = re.search(r'Repository Name: ([\w_-]*)[\s\S]*Issue Number: ([\w-]*)', self.description)
             if match_obj:
                 return match_obj.group(1), match_obj.group(2)
-            print('No match was found in the description.')
+            print(self.jira_key, 'No match was found in the description.')
 
     def dict_format(self) -> dict:
         """Describe this issue in a dictionary that can be posted to Jira"""
@@ -196,12 +196,11 @@ class JiraIssue(Issue):
 
     def get_epic_children(self):
         """If this issue is an epic, get all its children"""
-        print(f"{self.url}search?jql=cf[10008]='{self.jira_key}'")
+
         r = requests.get(f"{self.url}search?jql=cf[10008]='{self.jira_key}'", headers=self.headers)
 
         if r.status_code != 200:  # HTTP 200 OK
             print(f'{r.status_code} Error: {r.text}')
-        print(r.json())
         children = [i['key'] for i in r.json()['issues']]
         return children
 
