@@ -11,8 +11,13 @@ from src.utilities import get_zenhub_pipeline
 
 class JiraBoard(Board):
 
-    def __init__(self, repo: str = None, org: str = None):
-        """Create a Project storing all issues belonging to the provided project key"""
+    def __init__(self, repo, org, issues: list = None):
+        """Create a Project storing all issues belonging to the provided project key
+        :param repo: Required. The repo to work with e.g. TEST
+        :param org: Required. The organization the repo belongs to, e.g. ucsc-cgl
+        :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
+        retrieve and update the listed issues.
+        """
 
         super().__init__()
         self.url = get_access_params('jira')['options']['server'] % org
@@ -21,11 +26,17 @@ class JiraBoard(Board):
         self.jira_repo = repo
         self.jira_org = org
         self.issues = dict()
-        self.api_call(0)  # Get information for all issues in the project
+
+        if issues:
+            for i in issues:
+                self.issues[i] = JiraIssue(key=i, org=self.jira_org, board=self)
+
+        else:  # By default, get all issues
+            self.api_call()  # Get information for all issues in the project
 
         # self.github_org, self.github_repo = board_map[org][repo]
 
-    def api_call(self, start):
+    def api_call(self, start=0):
         """
         Make API calls until all results have been retrieved. Jira API responses can be paginated, defaulting to 50
         results per page, so a new call has to be made until the total is reached.
@@ -37,11 +48,10 @@ class JiraBoard(Board):
                                 headers=self.headers).json()
 
         for i in response['issues']:
-            self.issues[i['key']] = JiraIssue(response=i, org=self.jira_org)
-            self.issues[i['key']].jira_board = self  # Store a reference to the Board object this issue belongs to
+            self.issues[i['key']] = JiraIssue(response=i, org=self.jira_org, board=self)
 
         if response['total'] >= start + response['maxResults']:  # There could be another page of results
-            self.api_call(start + response['maxResults'])
+            self.api_call(start=start + response['maxResults'])
 
     def get_all_epics(self):
         """Search for issues in this project with issuetype=Epic"""
@@ -49,10 +59,16 @@ class JiraBoard(Board):
         r = requests.get(f'{self.url}search?jql=project={self.jira_repo} AND issuetype=Epic').json()
         return r
 
+    class CrypticNames:
+        """A class to hold field ids with names that aren't self explanatory"""
+        sprint = 'customfield_10010'
+        story_points = 'customfield_10014'
+
 
 class JiraIssue(Issue):
 
-    def __init__(self, key: str = None, org: str = None, response: dict = None):
+    # TODO break up this huge method
+    def __init__(self, board: 'JiraBoard', key: str = None, org: str = None, response: dict = None):
         """
         Create an Issue object from an issue key or from a portion of an API response
 
@@ -65,6 +81,7 @@ class JiraIssue(Issue):
         self.url = get_access_params('jira')['options']['server'] % org
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
         self.jira_org = org
+        self.jira_board = board
 
         if key:
             r = requests.get(f'{self.url}search?jql=id={key}', headers=self.headers)
@@ -95,11 +112,11 @@ class JiraIssue(Issue):
         # Not all issue descriptions have the corresponding github issue listed in them
         self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)
 
-        if self.CrypticNames.story_points in response['fields'].keys():
-            self.story_points = response['fields'][self.CrypticNames.story_points]
+        if self.jira_board.CrypticNames.story_points in response['fields'].keys():
+            self.story_points = response['fields'][self.jira_board.CrypticNames.story_points]
 
-        if self.CrypticNames.sprint in response['fields']:  # This custom field holds sprint information
-            if response['fields'][self.CrypticNames.sprint]:
+        if self.jira_board.CrypticNames.sprint in response['fields']:  # This custom field holds sprint information
+            if response['fields'][self.jira_board.CrypticNames.sprint]:
                 # This field is a list containing a dictionary that's been put in string format.
                 # Sprints can have duplicate names. id is the unique identifier used by the API.
 
@@ -110,11 +127,6 @@ class JiraIssue(Issue):
                     print('No sprint name was found in the sprint field')
 
         self.pipeline = get_zenhub_pipeline(self)  # This must be done after sprint status is set
-
-    class CrypticNames:
-        """A class to hold field ids with names that aren't self explanatory"""
-        sprint = 'customfield_10010'
-        story_points = 'customfield_10014'
 
     def get_github_equivalent(self):
         """Find the equivalent Github issue key and repo name if listed in the issue text. Issues synced by unito-bot
@@ -163,7 +175,7 @@ class JiraIssue(Issue):
         r = requests.put(f'{self.url}issue/{self.jira_key}', headers=self.headers, json=self.dict_format())
 
         if r.status_code != 204:  # HTTP 204 No Content on success
-            print(f'{r.status_code} Error: {r.reason}')
+            print(f'{r.status_code} Error: {r.text}')
 
     def post_new_issue(self):
         """Post this issue to Jira for the first time. The issue must not already exist."""
@@ -171,7 +183,7 @@ class JiraIssue(Issue):
         r = requests.post(f'{self.url}issue/', headers=self.headers, json=self.dict_format())
 
         if r.status_code != 201:  # HTTP 201 means created
-            print(f'{r.status_code} Error: {r.reason}')
+            print(f'{r.status_code} Error: {r.text}')
 
         self.jira_key = r.json()['key']  # keep the key that Jira assigned to this issue when creating it
 
@@ -183,16 +195,16 @@ class JiraIssue(Issue):
         r = requests.post(f'{old_api_url}agile/1.0/epic/{self.jira_key}/issue', json=issues, headers=self.headers)
 
         if r.status_code != 204:  # HTTP 204 No content on success
-            print(f'{r.status_code} Error: {r.reason}')
+            print(f'{r.status_code} Error: {r.text}')
 
     def remove_from_this_epic(self, issue_key):
         issues = {'issues': [issue_key]}
         old_api_url = first(self.url.split('api'))  # remove 'api/latest' from the url
-        # TODO is it a problem that this functionality only exists in the old api version
+
         r = requests.post(f'{old_api_url}agile/1.0/epic/none/issue', json=issues, headers=self.headers)
 
         if r.status_code != 200:  # HTTP 204 No content on success
-            print(f'{r.status_code} Error: {r.reason}')
+            print(f'{r.status_code} Error: {r.text}')
 
     def get_epic_children(self):
         """If this issue is an epic, get all its children"""
@@ -203,4 +215,3 @@ class JiraIssue(Issue):
             print(f'{r.status_code} Error: {r.text}')
         children = [i['key'] for i in r.json()['issues']]
         return children
-

@@ -40,6 +40,11 @@ class Issue:
         self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token',
                                                                                           'description', 'assignees']})
 
+        # The ZenHub story point value cannot be set to None. If it's being updated from a Jira issue with no story
+        # point value, set the story points to 0.
+        if source.__class__.__name__ == 'JiraIssue' and source.story_points is None:
+            self.story_points = 0
+
     def fill_in_blanks_from(self, source: 'Issue'):
         """If a field in the sink issue (self) is blank, fill it with info from the source issue."""
 

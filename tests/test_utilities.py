@@ -8,8 +8,10 @@ from settings import org, urls
 from src.utilities import get_repo_id, _get_repo_url, check_for_git_config
 
 
-def mocked_response(*args):
-    """Create class to mock requests response."""
+def mocked_response(*args, **kwargs):
+    """Create class to mock requests response.
+    :param kwargs is necessary to account for the headers in the request.
+    """
 
     class MockResponse:
         def __init__(self, json_data, status_code, reason):

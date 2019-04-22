@@ -2,9 +2,9 @@ import re
 import unittest
 from unittest.mock import patch, call
 
-from src.jira import JiraIssue
+from src.jira import JiraBoard, JiraIssue
 from src.sync import Sync
-from src.zenhub import ZenHubIssue
+from src.zenhub import ZenHubBoard, ZenHubIssue
 
 
 @patch('requests.Response')
@@ -87,7 +87,7 @@ class TestSync(unittest.TestCase):
         self.patch_zenhub_children = patch('src.zenhub.ZenHubIssue.get_epic_children', return_value=['3', '4'])
         self.patch_jira_children = patch('src.jira.JiraIssue.get_epic_children', return_value=['TEST-2', 'TEST-3'])
         self.patch_get_repo_id = patch('src.zenhub.get_repo_id', return_value={'repo_id': 'abc'})
-        self.patch_pipeline_ids = patch('src.zenhub.ZenHubIssue._get_pipeline_ids', return_value={'Done': 1})
+        self.patch_pipeline_ids = patch('src.zenhub.ZenHubBoard._get_pipeline_ids', return_value={'Done': 1})
         self.patch_requests = patch('src.zenhub.requests.get', side_effect=mock_response)
         self.patch_token = patch('src.access._get_token', return_value='xyz')
 
@@ -96,19 +96,21 @@ class TestSync(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)  # all patches started in this way have to be stopped at the end
 
-        self.ZENHUB_ISSUE_1 = ZenHubIssue(key='1', repo='abc', org='ucsc-cgp')
+        self.ZENHUB_BOARD = ZenHubBoard(repo='abc', org='ucsc-cgp', issues=['1', '2', '3', '4'])
+        self.ZENHUB_ISSUE_1 = self.ZENHUB_BOARD.issues['1']
 
-        self.JIRA_ISSUE_1 = JiraIssue(key='TEST-1', org='ucsc-cgl')
+        self.JIRA_BOARD = JiraBoard(repo='TEST', org='ucsc-cgl', issues=['TEST-1', 'TEST-2', 'TEST-3', 'TEST-4'])
+        self.JIRA_ISSUE_1 = self.JIRA_BOARD.issues['TEST-1']
 
     @patch('src.jira.JiraIssue.add_to_this_epic')
     @patch('src.jira.JiraIssue.remove_from_this_epic')
     @patch('src.zenhub.ZenHubIssue.change_epic_membership')
     def test_sync_epics(self, change_mock_zenhub_epic_membership, remove_from_mock_jira_epic, add_to_mock_jira_epic):
 
-        Sync.sync_epics(self.JIRA_ISSUE_1, self.ZENHUB_ISSUE_1)  # test syncing from Jira to ZenHub
+        Sync.sync_epics_in_board(self.JIRA_ISSUE_1, self.ZENHUB_ISSUE_1)  # test syncing from Jira to ZenHub
         change_mock_zenhub_epic_membership.assert_has_calls([call(add='2'), call(remove='4')])
 
-        Sync.sync_epics(self.ZENHUB_ISSUE_1, self.JIRA_ISSUE_1)  # test syncing from ZenHub to Jira
+        Sync.sync_epics_in_board(self.ZENHUB_ISSUE_1, self.JIRA_ISSUE_1)  # test syncing from ZenHub to Jira
         add_to_mock_jira_epic.assert_called_with('TEST-4')
         remove_from_mock_jira_epic.assert_called_with('TEST-2')
 

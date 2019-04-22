@@ -1,4 +1,5 @@
 import copy
+import time
 
 from src.jira import JiraBoard, JiraIssue
 from src.zenhub import ZenHubBoard, ZenHubIssue
@@ -22,13 +23,20 @@ class Sync:
             pp.pprint(sink.issues)
             for issue in source.issues.values():
                 print("syncing issue " + issue.jira_key)
-                if issue.github_key:
+                for i in range(5):  # Allow for 5 retries
                     try:
-                        Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
-                    except KeyError as e:
-                        raise ValueError(f'Issue {issue.github_key} referenced from {issue.jira_key} not found in board')
-                else:
-                    print("skipping this issue")
+                        if issue.github_key:
+                            try:
+                                Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
+                            except KeyError as e:
+                                raise ValueError(f'Issue {issue.github_key} referenced from {issue.jira_key} not found in board')
+                        else:
+                            print("skipping this issue")
+                        break
+                    except RuntimeError as e:
+                        print(repr(e))
+                        time.sleep(10)  # The API rate limit may have been reached
+                        continue
 
     @staticmethod
     def sync_from_specified_source(source: 'Issue', destination: 'Issue'):
@@ -36,10 +44,14 @@ class Sync:
         # ZenHub issue types have to be changed through a separate request
         if destination.__class__.__name__ == 'ZenHubIssue':
             if source.issue_type == 'Epic' and destination.issue_type == 'Issue':
+                print(source.jira_key, source.issue_type)
+                print(destination.github_key, destination.issue_type)
+                print("promoting")
                 destination.promote_issue_to_epic()
             elif source.issue_type != 'Epic' and destination.issue_type == 'Epic':
                 print(source.jira_key, source.issue_type)
                 print(destination.github_key, destination.issue_type)
+                print("demoting")
                 destination.demote_epic_to_issue()
 
         destination.update_from(source)

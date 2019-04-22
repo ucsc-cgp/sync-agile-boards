@@ -54,18 +54,18 @@ def _get_repo_url(repo_name, org_name):
 
 def get_zenhub_pipeline(i: 'Issue'):
     backlog_map = {
-        'New Issue': 'New Issue',
+        'New Issue': 'New Issues',
         'Icebox': 'Icebox',
         'To Do': 'Epic',
-        'In Progress': 'Product Backlog',
-        'In Review': 'Product Backlog',
-        'Merged': 'Product Backlog',
+        'In Progress': 'Backlog',
+        'In Review': 'Backlog',
+        'Merged': 'Backlog',
         'Done': 'Done',
         'Closed': 'Closed'
     }
     sprint_map = {
-        'New Issue': 'New Issue',
-        'To Do': 'Sprint Backlog',
+        'New Issue': 'New Issues',
+        'To Do': 'Backlog',
         'In Progress': 'In Progress',
         'In Review': 'Review/QA',
         'Merged': 'Merged',
@@ -81,9 +81,8 @@ def get_zenhub_pipeline(i: 'Issue'):
 def get_jira_status(i: 'Issue'):
     map = {
         'New Issues': 'New Issue',
-        'Product Backlog': 'To Do',
+        'Backlog': 'To Do',
         'Icebox': 'Rejected',  # ??
-        'Sprint Backlog': 'To Do',
         'In Progress': 'In Progress',
         'Review/QA': 'In Review',
         'Merged': 'Merged',

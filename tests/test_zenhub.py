@@ -3,7 +3,7 @@
 import re
 import unittest
 from unittest.mock import patch
-from src.zenhub import ZenHub, ZenHubIssue
+from src.zenhub import ZenHub, ZenHubBoard, ZenHubIssue
 
 
 def mocked_response(*args, **kwargs):
@@ -75,7 +75,8 @@ class TestZenHub(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
-        self.zen = ZenHubIssue(key='42', repo='abc', org='ucsc-cgp')
+        self.board = ZenHubBoard(repo='abc', org='ucsc-cgp', issues=['42'])
+        self.zen = self.board.issues['42']
 
     @patch('src.zenhub.get_access_params')
     @patch('src.zenhub.get_repo_id')
