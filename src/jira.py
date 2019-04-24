@@ -8,7 +8,7 @@ from src.access import get_access_params
 from src.issue import Board, Issue
 from src.utilities import get_zenhub_pipeline
 
-
+import pprint
 class JiraBoard(Board):
 
     def __init__(self, repo, org, issues: list = None):
@@ -89,6 +89,8 @@ class JiraIssue(Issue):
             if r.status_code != 200:
                 raise ValueError(f'{r.status_code} Error: {r.text}')
             r = r.json()
+            pp = pprint.PrettyPrinter()
+            pp.pprint(r)
 
             if 'issues' in r.keys():  # If the key doesn't match any issues, this will be an empty list
                 response = r['issues'][0]  # Get the one and only issue in the response

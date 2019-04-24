@@ -175,7 +175,7 @@ class ZenHubIssue(Issue):
                 response['issue_number'] = key
             else:
                 raise ValueError(f'{r.status_code} Error: {r.text}')
-        
+
         self.github_key = response['issue_number']  # this identifier is used by zenhub and github
 
         if 'estimate' in response:

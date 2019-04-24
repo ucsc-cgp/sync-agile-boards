@@ -36,7 +36,7 @@ class Issue:
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
         """
-        # TODO should be able to update description while leaving issue link intact
+        
         self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token',
                                                                                           'description', 'assignees']})
 
@@ -45,6 +45,13 @@ class Issue:
         if source.__class__.__name__ == 'JiraIssue' and source.story_points is None:
             self.story_points = 0
 
+        if self.description and source.description:  # Both issues should have a description already
+            self.description = Issue.merge_descriptions(source.description, self.description)
+        elif source.__class__.__name__ == 'GitHubIssue':  # unless a ZenHubIssue is being updated from GitHub
+            self.description = source.description
+        else:  # Otherwise, something is wrong
+            raise RuntimeError(f'Issue {self.jira_key} or {self.github_key} has no description')
+
     def fill_in_blanks_from(self, source: 'Issue'):
         """If a field in the sink issue (self) is blank, fill it with info from the source issue."""
 
@@ -52,6 +59,16 @@ class Issue:
             if attribute not in ['headers', 'url', 'token', 'description']:  # ignore attributes specific to the source
                 if self.__dict__[attribute] is None:
                     self.__dict__[attribute] = source.__dict__[attribute]  # fill in missing info
+
+    @staticmethod
+    def merge_descriptions(source: str, sink: str) -> str:
+        """Merge issue descriptions by copying over the description text without changing the issue sync information
+        put in by Unito."""
+
+        # lines added by unito start with ┆
+        unito_link = [line for line in sink.split('\n') if line.startswith('┆')]
+        new_description = [line for line in source.split('\n') if not line.startswith('┆')]
+        return '\n'.join(new_description) + '\n'.join(unito_link)
 
     def print(self):
         """Print out all fields for this issue. For testing purposes"""
@@ -66,4 +83,3 @@ class Board:
         self.issues = None
         self.org = None
         self.repo = None
-

@@ -60,11 +60,13 @@ class GitHubIssue(Issue):
 
         if key and repo:
             r = requests.get(f'{self.url}{repo}/issues/{str(key)}', headers=self.headers).json()
-
+            pp = pprint.PrettyPrinter()
+            pp.pprint(r)
             if 'number' not in r.keys():  # If the key doesn't match any issues, this field won't exist
                 raise ValueError('No issue matching this id and repo was found')
 
         self.description = r['body']
+        print("github description: " + self.description)
         self.github_key = r['number']
         self.jira_key = self.get_jira_equivalent()
         self.summary = r['title']
