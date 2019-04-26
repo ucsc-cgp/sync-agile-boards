@@ -15,7 +15,7 @@ def main():
     for j in zen_board.issues.values():
         j.print()
 
-    Sync.sync_board(zen_board, jira_board)
+    Sync.sync_board(jira_board, zen_board)
 
 
 if __name__ == '__main__':

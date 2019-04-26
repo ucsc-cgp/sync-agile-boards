@@ -192,8 +192,10 @@ class ZenHubIssue(Issue):
             self.issue_type = 'Story'
             self.children = []
 
+        self.github_equivalent = GitHubIssue(key=self.github_key, repo=self.github_repo, org=self.github_org)
+
         # Fill in the missing information for this issue that's in GitHub but not ZenHub
-        self.update_from(GitHubIssue(key=self.github_key, repo=self.github_repo, org=self.github_org))
+        self.update_from(self.github_equivalent)
 
         self.status = get_jira_status(self)
         print(self.github_key, self.status)

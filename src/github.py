@@ -21,7 +21,7 @@ class GitHubBoard(Board):
         self.api_call(1)
 
     def api_call(self, start):
-        """Make API requests until all results have been retrieved. GitHub API responses are split into pages of 30 results"""
+        """Make API requests until all results have been retrieved. API responses are split into pages of 30 results"""
 
         r = requests.get(f'{self.url}{self.github_repo}/issues?state=all&page={start}', headers=self.headers)
 
@@ -36,6 +36,7 @@ class GitHubBoard(Board):
         # The 'Link' field in the header gives a link to the next page labelled with rel="next', if there is one
         if 'rel="next"' in r.headers['Link']:
             self.api_call(start + 1)
+
 
 class GitHubIssue(Issue):
 
@@ -114,7 +115,8 @@ class GitHubIssue(Issue):
     def update_remote(self):
         """Update this issue on GitHub. The issue must already exist."""
 
-        r = requests.patch(f'{self.url}{self.github_repo}/issues/{self.github_key}', headers=self.headers, json=self.dict_format())
+        r = requests.patch(f'{self.url}{self.github_repo}/issues/{self.github_key}', headers=self.headers,
+                           json=self.dict_format())
 
         if r.status_code != 200:
             print(f'{r.status_code} Error: {r.reason}')

@@ -107,10 +107,10 @@ class TestSync(unittest.TestCase):
     @patch('src.zenhub.ZenHubIssue.change_epic_membership')
     def test_sync_epics(self, change_mock_zenhub_epic_membership, remove_from_mock_jira_epic, add_to_mock_jira_epic):
 
-        Sync.sync_epics_in_board(self.JIRA_ISSUE_1, self.ZENHUB_ISSUE_1)  # test syncing from Jira to ZenHub
+        Sync.sync_epics(self.JIRA_ISSUE_1, self.ZENHUB_ISSUE_1)  # test syncing from Jira to ZenHub
         change_mock_zenhub_epic_membership.assert_has_calls([call(add='2'), call(remove='4')])
 
-        Sync.sync_epics_in_board(self.ZENHUB_ISSUE_1, self.JIRA_ISSUE_1)  # test syncing from ZenHub to Jira
+        Sync.sync_epics(self.ZENHUB_ISSUE_1, self.JIRA_ISSUE_1)  # test syncing from ZenHub to Jira
         add_to_mock_jira_epic.assert_called_with('TEST-4')
         remove_from_mock_jira_epic.assert_called_with('TEST-2')
 
