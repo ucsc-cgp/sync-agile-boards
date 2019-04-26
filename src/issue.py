@@ -36,7 +36,10 @@ class Issue:
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
         """
-        
+        # TODO sync assignees
+
+        # Headers, url, and token are specific to the issue being in Jira or ZenHub.
+        # Description and assignees are more complicated to sync.
         self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token',
                                                                                           'description', 'assignees']})
 
@@ -45,14 +48,15 @@ class Issue:
         if source.__class__.__name__ == 'JiraIssue' and source.story_points is None:
             self.story_points = 0
 
-        if self.description and source.description:  # Both issues should have a description already
+        if self.description and source.description:       # Both issues should have a description already
             self.description = Issue.merge_descriptions(source.description, self.description)
         elif source.__class__.__name__ == 'GitHubIssue':  # unless a ZenHubIssue is being updated from GitHub
             self.description = source.description
-        else:  # Otherwise, something is wrong
+        else:                                             # Otherwise, something is wrong
             raise RuntimeError(f'Issue {self.jira_key} or {self.github_key} has no description')
 
     def fill_in_blanks_from(self, source: 'Issue'):
+        # TODO is this used anywhere?
         """If a field in the sink issue (self) is blank, fill it with info from the source issue."""
 
         for attribute in source.__dict__.keys():
@@ -62,11 +66,9 @@ class Issue:
 
     @staticmethod
     def merge_descriptions(source: str, sink: str) -> str:
-        """Merge issue descriptions by copying over the description text without changing the issue sync information
-        put in by Unito."""
+        """Merge issue descriptions by copying over description text without changing the sync info put in by Unito"""
 
-        # lines added by unito start with ┆
-        unito_link = [line for line in sink.split('\n') if line.startswith('┆')]
+        unito_link = [line for line in sink.split('\n') if line.startswith('┆')]  # lines added by unito start with ┆
         new_description = [line for line in source.split('\n') if not line.startswith('┆')]
         return '\n'.join(new_description) + '\n'.join(unito_link)
 

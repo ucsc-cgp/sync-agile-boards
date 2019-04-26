@@ -19,11 +19,10 @@ class Sync:
             for issue in source.issues.values():
                 Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
         elif source.__class__.__name__ == 'JiraBoard' and sink.__class__.__name__ == 'ZenHubBoard':
-            pp = pprint.PrettyPrinter()
-            pp.pprint(sink.issues)
+
             for issue in source.issues.values():
                 print("syncing issue " + issue.jira_key)
-                for i in range(5):  # Allow for 5 retries
+                for i in range(3):  # Allow for 3 retries
                     try:
                         if issue.github_key:
                             try:
@@ -77,7 +76,7 @@ class Sync:
             sink_children = sink.get_epic_children()  # list
 
             for issue in source.children:  # It could have 0 children
-                z = source.zenhub_board.issues[issue]
+                z = source.zenhub_board.issues[str(issue)]
 
                 if z.jira_key not in sink_children:  # issue belongs to this epic in ZenHub but not Jira yet
                     sink.add_to_this_epic(z.jira_key)
@@ -128,7 +127,7 @@ class Sync:
         elif source.__class__.__name__ == 'JiraIssue' and sink.__class__.__name__ == 'ZenHubIssue':
             source_children = source.get_epic_children()  # list
             dest_children = copy.deepcopy(sink.children)  # make a copy to be edited
-            print("a")
+
             if source.issue_type == 'Epic':  # This issue is an epic
                 if sink.issue_type != 'Epic':
                     sink.promote_issue_to_epic()

@@ -185,17 +185,18 @@ class ZenHubIssue(Issue):
         else:
             self.pipeline = 'Closed'  # TODO is this the only case in which the pipeline is not labelled?
 
-        self.jira_status = get_jira_status(self)
-
         if response['is_epic'] is True:
             self.issue_type = 'Epic'
             self.children = self.get_epic_children()  # Fill in the self.children field
         else:
-            self.issue_type = 'Issue'
+            self.issue_type = 'Story'
             self.children = []
 
         # Fill in the missing information for this issue that's in GitHub but not ZenHub
         self.update_from(GitHubIssue(key=self.github_key, repo=self.github_repo, org=self.github_org))
+
+        self.status = get_jira_status(self)
+        print(self.github_key, self.status)
 
     def update_remote(self):
         # TODO the ZenHub API only supports editing issue points, pipeline, and epic status. Other changes can be made
@@ -307,3 +308,12 @@ class ZenHubIssue(Issue):
 
         if r.status_code != 200:
             raise ValueError(f'{r.status_code} Error: {r.text}')
+
+    def get_issue_events(self):
+        r = requests.get(f'{self.url}{self.repo_id}/issues/{self.github_key}/events', headers=self.headers)
+        r = r.json()
+
+
+if __name__ == '__main__':
+    z = ZenHubBoard(repo='sync-test', org='ucsc-cgp', issues=['42'])
+    z.issues['42'].get_issue_events()

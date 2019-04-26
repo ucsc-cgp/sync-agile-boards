@@ -9,6 +9,8 @@ from src.issue import Board, Issue
 from src.utilities import get_zenhub_pipeline
 
 import pprint
+
+
 class JiraBoard(Board):
 
     def __init__(self, repo, org, issues: list = None):
@@ -54,6 +56,7 @@ class JiraBoard(Board):
             self.api_call(start=start + response['maxResults'])
 
     def get_all_epics(self):
+        # TODO is this used anywhere?
         """Search for issues in this project with issuetype=Epic"""
 
         r = requests.get(f'{self.url}search?jql=project={self.jira_repo} AND issuetype=Epic').json()
@@ -72,6 +75,7 @@ class JiraIssue(Issue):
         """
         Create an Issue object from an issue key or from a portion of an API response
 
+        :param board: The JiraBoard object representing the repo this issue belongs to
         :param key: If specified, make an API call searching by this issue key
         :param org: The organization the issue belongs to, e.g. ucsc-cgl
         :param response: If specified, don't make a new API call but use this response from an earlier one
@@ -86,15 +90,13 @@ class JiraIssue(Issue):
         if key:
             r = requests.get(f'{self.url}search?jql=id={key}', headers=self.headers)
 
-            if r.status_code != 200:
+            if r.status_code == 200:
+                r = r.json()
+            else:
                 raise ValueError(f'{r.status_code} Error: {r.text}')
-            r = r.json()
-            pp = pprint.PrettyPrinter()
-            pp.pprint(r)
 
             if 'issues' in r.keys():  # If the key doesn't match any issues, this will be an empty list
                 response = r['issues'][0]  # Get the one and only issue in the response
-
             else:
                 raise ValueError('No issue matching this id was found')
 

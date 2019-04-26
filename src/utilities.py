@@ -56,10 +56,10 @@ def get_zenhub_pipeline(i: 'Issue'):
     backlog_map = {
         'New Issue': 'New Issues',
         'Icebox': 'Icebox',
-        'To Do': 'Epic',
-        'In Progress': 'Backlog',
-        'In Review': 'Backlog',
-        'Merged': 'Backlog',
+        'To Do': 'Backlog',
+        'In Progress': 'In Progress',
+        'In Review': 'Review/QA',
+        'Merged': 'Merged',
         'Done': 'Done',
         'Closed': 'Closed'
     }
