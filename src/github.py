@@ -108,7 +108,7 @@ class GitHubIssue(Issue):
         r = requests.post(f'{self.url}{self.github_repo}/issues/', headers=self.headers, json=self.dict_format)
 
         if r.status_code != 200:
-            print(f'{r.status_code} Error: {r.reason}')
+            print(f'{r.status_code} Error posting to GitHub: {r.reason}')
 
         self.github_key = r.json()['id']  # keep the key that GitHub assigned to this issue when creating it
 
@@ -119,7 +119,7 @@ class GitHubIssue(Issue):
                            json=self.dict_format())
 
         if r.status_code != 200:
-            print(f'{r.status_code} Error: {r.reason}')
+            print(f'{r.status_code} Error updating GitHub: {r.reason}')
 
 
 if __name__ == '__main__':

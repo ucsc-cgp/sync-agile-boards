@@ -41,10 +41,8 @@ class Sync:
         # ZenHub issue types have to be changed through a separate request
         if destination.__class__.__name__ == 'ZenHubIssue':
             if source.issue_type == 'Epic' and destination.issue_type != 'Epic':
-                print("promoting")
                 destination.promote_issue_to_epic()
             elif source.issue_type != 'Epic' and destination.issue_type == 'Epic':
-                print("demoting")
                 destination.demote_epic_to_issue()
 
             # Some fields like description and title have to be updated thru GitHub
@@ -54,7 +52,7 @@ class Sync:
         destination.update_from(source)
         destination.update_remote()
 
-        if source.issue_type == 'Epic':
+        if source.issue_type == 'Epic':  # By this point destination will also be an Epic
             Sync.sync_epics(source, destination)
 
     @staticmethod
@@ -67,6 +65,8 @@ class Sync:
 
     @staticmethod
     def sync_epics(source: 'Issue', sink: 'Issue'):
+
+        # TODO condense
 
         if source.__class__.__name__ == 'ZenHubIssue' and sink.__class__.__name__ == 'JiraIssue':
             sink_children = sink.get_epic_children()  # list

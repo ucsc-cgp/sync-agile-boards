@@ -25,7 +25,6 @@ class Issue:
         self.summary = None  # str
         self.updated = None  # datetime object
 
-        self.parent = None  # str, the epic that this issue is a sub-task of
         self.children = None  # list[str], if this is an epic, lists issues belonging to it
 
         self.jira_board = None
