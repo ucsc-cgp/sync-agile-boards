@@ -65,43 +65,12 @@ class Sync:
     @staticmethod
     def sync_epics(source: 'Issue', sink: 'Issue'):
 
-        # TODO condense
-
-        # if source.__class__.__name__ == 'ZenHubIssue' and sink.__class__.__name__ == 'JiraIssue':
-        #     sink_children = sink.get_epic_children()  # list
-        #
-        #     for issue in source.children:  # It could have 0 children
-        #         z = source.zenhub_board.issues[str(issue)]
-        #
-        #         if z.jira_key not in sink_children:  # issue belongs to this epic in ZenHub but not Jira yet
-        #             sink.change_epic_membership(add=z.jira_key)
-        #         else:  # issue belongs to this epic in both ZenHub and Jira
-        #             sink_children.remove(z.jira_key)  # remove it from the list so we can tell if any are left at the end
-        #
-        #     for issue in sink_children:  # any issues left in this list do not belong to the epic in ZenHub,
-        #         sink.change_epic_membership(remove=issue)  # so we remove them from the epic in Jira
-        #
-        # elif source.__class__.__name__ == 'JiraIssue' and sink.__class__.__name__ == 'ZenHubIssue':
-        #     source_children = source.get_epic_children()  # list
-        #     sink_children = copy.deepcopy(sink.children)  # make a copy to be edited
-        #
-        #     for issue in source_children:
-        #         j = source.jira_board.issues[issue]
-        #
-        #         if j.github_key not in sink.children:  # issue belongs to this epic in Jira but not ZenHub
-        #             sink.change_epic_membership(add=j.github_key)
-        #         else:  # issue belongs to this epic in both Jira and ZenHub
-        #             sink_children.remove(j.github_key)  # remove it from the list so we can tell if any are left at the end
-        #
-        #     for issue in sink_children:  # any issues left in this list do not belong to the epic in Jira,
-        #         sink.change_epic_membership(remove=issue)  # so we remove them from the epic in ZenHub
-
         # Get lists of epic children
         source_children = source.get_epic_children()
         sink_children = sink.get_epic_children()
 
         for issue in source_children:  # It could have 0 children
-            source_child = source.repo_object.issues[str(issue)]  # Get the Issue object by its key
+            source_child = source.repo.issues[str(issue)]  # Get the Issue object by its key
 
             if source_child.__class__.__name__ == 'ZenHubIssue':  # Get the key of the same issue in the opposite
                 twin_key = source_child.jira_key                  # management system

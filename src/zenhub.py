@@ -1,5 +1,5 @@
 #!/usr/env/python3
-# from settings import board_map
+
 from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.github import GitHubRepo, GitHubIssue
@@ -111,7 +111,7 @@ class ZenHubRepo(Repo):
         if issues:
             for i in issues:
                 self.issues[i] = ZenHubIssue(repo=self, key=i)
-                self.issues[i].repo_object = self  # Store a reference to the board object
+                self.issues[i].repo = self  # Store a reference to the board object
         else:
             self.get_all_issues()  # By default, get all issues in the repo
 
@@ -158,10 +158,10 @@ class ZenHubIssue(Issue):
 
         super().__init__()
 
-        self.repo_object = repo
+        self.repo = repo
 
         if key and repo:
-            r = requests.get(f'{self.repo_object.url}{self.repo_object.id}/issues/{key}', headers=self.repo_object.headers)
+            r = requests.get(f'{self.repo.url}{self.repo.id}/issues/{key}', headers=self.repo.headers)
             if r.status_code == 200:
                 response = r.json()
                 response['issue_number'] = key
@@ -182,7 +182,7 @@ class ZenHubIssue(Issue):
         else:
             self.issue_type = 'Story'
 
-        self.github_equivalent = GitHubIssue(key=self.github_key, repo=self.repo_object.name, org=self.repo_object.org)
+        self.github_equivalent = GitHubIssue(key=self.github_key, repo=self.repo.name, org=self.repo.org)
 
         # Fill in the missing information for this issue that's in GitHub but not ZenHub
         self.update_from(self.github_equivalent)
@@ -202,8 +202,8 @@ class ZenHubIssue(Issue):
         logger.info(f'Changing the current value of story points to {self.story_points}')
         json_dict = {'estimate': self.story_points}
 
-        r = requests.put(f'{self.repo_object.url}{self.repo_object.id}/issues/{self.github_key}/estimate',
-                         headers=self.repo_object.headers, json=json_dict)
+        r = requests.put(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/estimate',
+                         headers=self.repo.headers, json=json_dict)
 
         if r.status_code == 200:
             logger.info(f'Success. {self.github_key} now has a story points value of {self.story_points}')
@@ -219,13 +219,13 @@ class ZenHubIssue(Issue):
         See https://github.com/ZenHubIO/API#move-an-issue-between-pipelines for further documentation.
         Issue pipeline name must be valid. By default issues are inserted at the top of the list in the pipeline."""
 
-        if self.pipeline in self.repo_object.pipeline_ids:
+        if self.pipeline in self.repo.pipeline_ids:
             logger.info(f'Changing the current value of pipeline to {self.pipeline}')
 
-            json_dict = {'pipeline_id': self.repo_object.pipeline_ids[self.pipeline], 'position': 'top'}
+            json_dict = {'pipeline_id': self.repo.pipeline_ids[self.pipeline], 'position': 'top'}
 
-            r = requests.post(f'{self.repo_object.url}{self.repo_object.id}/issues/{self.github_key}/moves',
-                              headers=self.repo_object.headers, json=json_dict)
+            r = requests.post(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/moves',
+                              headers=self.repo.headers, json=json_dict)
 
             if r.status_code == 200:
                 logger.info(f'Success. {self.github_key} was moved to {self.pipeline}')
@@ -241,8 +241,8 @@ class ZenHubIssue(Issue):
 
         logger.info(f'Turning {self.github_key} into an epic in repo {self.github_key}')
 
-        json_dict = {'issues': [{'repo_id': self.repo_object.id, 'issue_number': self.github_key}]}
-        r = requests.post(f'{self.repo_object.url}{self.repo_object.id}/issues/{self.github_key}/convert_to_epic', headers=self.repo_object.headers,
+        json_dict = {'issues': [{'repo_id': self.repo.id, 'issue_number': self.github_key}]}
+        r = requests.post(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/convert_to_epic', headers=self.repo.headers,
                           json=json_dict)
 
         if r.status_code == 200:
@@ -255,11 +255,11 @@ class ZenHubIssue(Issue):
 
     def demote_epic_to_issue(self):
 
-        logger.info(f'Turning {self.github_key} into an issue in repo {self.repo_object.name}')
+        logger.info(f'Turning {self.github_key} into an issue in repo {self.repo.name}')
 
-        json_dict = {'issues': [{'repo_id': self.repo_object.id, 'issue_number': self.github_key}]}
+        json_dict = {'issues': [{'repo_id': self.repo.id, 'issue_number': self.github_key}]}
 
-        r = requests.post(f'{self.repo_object.url}{self.repo_object.id}/epics/{self.github_key}/convert_to_issue', headers=self.repo_object.headers,
+        r = requests.post(f'{self.repo.url}{self.repo.id}/epics/{self.github_key}/convert_to_issue', headers=self.repo.headers,
                           json=json_dict)
 
         if r.status_code == 200:
@@ -271,7 +271,7 @@ class ZenHubIssue(Issue):
     def get_epic_children(self):
         """Fill in the self.children field with all issues that belong to this epic. Self must be an epic."""
 
-        r = requests.get(f'{self.repo_object.url}{self.repo_object.id}/epics/{self.github_key}', headers=self.repo_object.headers)
+        r = requests.get(f'{self.repo.url}{self.repo.id}/epics/{self.github_key}', headers=self.repo.headers)
 
         if r.status_code == 200:
             return [str(i['issue_number']) for i in r.json()['issues']]  # Convert to str from int for consistency
@@ -285,13 +285,13 @@ class ZenHubIssue(Issue):
         :param remove: If specified, remove the given issue from self epic
         """
         if add:
-            content = {'add_issues': [{'repo_id': int(self.repo_object.id), 'issue_number': int(add)}]}
+            content = {'add_issues': [{'repo_id': int(self.repo.id), 'issue_number': int(add)}]}
         elif remove:
-            content = {'remove_issues': [{'repo_id': int(self.repo_object.id), 'issue_number': int(remove)}]}
+            content = {'remove_issues': [{'repo_id': int(self.repo.id), 'issue_number': int(remove)}]}
         else:
             raise ValueError('need to specify an epic to add to or remove from')
 
-        r = requests.post(f'{self.repo_object.url}{self.repo_object.id}/epics/{self.github_key}/update_issues', headers=self.repo_object.headers,
+        r = requests.post(f'{self.repo.url}{self.repo.id}/epics/{self.github_key}/update_issues', headers=self.repo.headers,
                           json=content)
 
         if r.status_code != 200:

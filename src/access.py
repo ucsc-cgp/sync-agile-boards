@@ -43,7 +43,6 @@ def get_access_params(mgmnt_sys):
 
 
 def _get_token(path_to_token):
-    print("in _get_token")
     home = str(Path.home())
     path_to_token = path_to_token.replace('~', home)
     try:

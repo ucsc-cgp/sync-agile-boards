@@ -20,7 +20,7 @@ class Issue:
         self.summary = None  # str
         self.updated = None  # datetime object
 
-        self.repo_object = None  # Repo object, the repo in which this issue lives
+        self.repo = None  # Repo object, the repo in which this issue lives
 
     def update_from(self, source: 'Issue'):
         """
@@ -33,7 +33,7 @@ class Issue:
         # Description and assignees are more complicated to sync.
         self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token',
                                                                                           'description', 'assignees',
-                                                                                          'repo_object']})
+                                                                                          'repo']})
 
         # The ZenHub story point value cannot be set to None. If it's being updated from a Jira issue with no story
         # point value, set the story points to 0.
