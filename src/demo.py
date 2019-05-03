@@ -1,7 +1,6 @@
-from src.jira import JiraRepo, JiraIssue
+from src.jira import JiraRepo
 from src.sync import Sync
-from src.zenhub import ZenHubRepo, ZenHubIssue
-import sys
+from src.zenhub import ZenHubRepo
 
 
 def main():
