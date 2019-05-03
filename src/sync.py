@@ -1,8 +1,7 @@
-import copy
 import time
 
-from src.jira import JiraBoard, JiraIssue
-from src.zenhub import ZenHubBoard, ZenHubIssue
+from src.jira import JiraRepo, JiraIssue
+from src.zenhub import ZenHubRepo, ZenHubIssue
 
 
 class Sync:
@@ -13,11 +12,11 @@ class Sync:
     @staticmethod
     def sync_board(source: 'Board', sink: 'Board'):
 
-        if source.__class__.__name__ == 'ZenHubBoard' and sink.__class__.__name__ == 'JiraBoard':
+        if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
             for issue in source.issues.values():
                 Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
 
-        elif source.__class__.__name__ == 'JiraBoard' and sink.__class__.__name__ == 'ZenHubBoard':
+        elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
             for issue in source.issues.values():
                 for i in range(3):  # Allow for 3 tries
                     try:
@@ -68,39 +67,60 @@ class Sync:
 
         # TODO condense
 
-        if source.__class__.__name__ == 'ZenHubIssue' and sink.__class__.__name__ == 'JiraIssue':
-            sink_children = sink.get_epic_children()  # list
+        # if source.__class__.__name__ == 'ZenHubIssue' and sink.__class__.__name__ == 'JiraIssue':
+        #     sink_children = sink.get_epic_children()  # list
+        #
+        #     for issue in source.children:  # It could have 0 children
+        #         z = source.zenhub_board.issues[str(issue)]
+        #
+        #         if z.jira_key not in sink_children:  # issue belongs to this epic in ZenHub but not Jira yet
+        #             sink.change_epic_membership(add=z.jira_key)
+        #         else:  # issue belongs to this epic in both ZenHub and Jira
+        #             sink_children.remove(z.jira_key)  # remove it from the list so we can tell if any are left at the end
+        #
+        #     for issue in sink_children:  # any issues left in this list do not belong to the epic in ZenHub,
+        #         sink.change_epic_membership(remove=issue)  # so we remove them from the epic in Jira
+        #
+        # elif source.__class__.__name__ == 'JiraIssue' and sink.__class__.__name__ == 'ZenHubIssue':
+        #     source_children = source.get_epic_children()  # list
+        #     sink_children = copy.deepcopy(sink.children)  # make a copy to be edited
+        #
+        #     for issue in source_children:
+        #         j = source.jira_board.issues[issue]
+        #
+        #         if j.github_key not in sink.children:  # issue belongs to this epic in Jira but not ZenHub
+        #             sink.change_epic_membership(add=j.github_key)
+        #         else:  # issue belongs to this epic in both Jira and ZenHub
+        #             sink_children.remove(j.github_key)  # remove it from the list so we can tell if any are left at the end
+        #
+        #     for issue in sink_children:  # any issues left in this list do not belong to the epic in Jira,
+        #         sink.change_epic_membership(remove=issue)  # so we remove them from the epic in ZenHub
 
-            for issue in source.children:  # It could have 0 children
-                z = source.zenhub_board.issues[str(issue)]
+        # Get lists of epic children
+        source_children = source.get_epic_children()
+        sink_children = sink.get_epic_children()
 
-                if z.jira_key not in sink_children:  # issue belongs to this epic in ZenHub but not Jira yet
-                    sink.add_to_this_epic(z.jira_key)
-                else:  # issue belongs to this epic in both ZenHub and Jira
-                    sink_children.remove(z.jira_key)  # remove it from the list so we can tell if any are left at the end
+        for issue in source_children:  # It could have 0 children
+            source_child = source.repo_object.issues[str(issue)]  # Get the Issue object by its key
 
-            for issue in sink_children:  # any issues left in this list do not belong to the epic in ZenHub,
-                sink.remove_from_this_epic(issue)  # so we remove them from the epic in Jira
+            if source_child.__class__.__name__ == 'ZenHubIssue':  # Get the key of the same issue in the opposite
+                twin_key = source_child.jira_key                  # management system
+            else:
+                twin_key = source_child.github_key
 
-        elif source.__class__.__name__ == 'JiraIssue' and sink.__class__.__name__ == 'ZenHubIssue':
-            source_children = source.get_epic_children()  # list
-            sink_children = copy.deepcopy(sink.children)  # make a copy to be edited
+            if twin_key not in sink_children:  # issue belongs to this epic in source but not sink yet,
+                sink.change_epic_membership(add=twin_key)  # so add it as a child of sink
 
-            for issue in source_children:
-                j = source.jira_board.issues[issue]
+            else:  # issue already belongs to this epic in both source and sink; remove it from the list so we can
+                sink_children.remove(twin_key)  # tell if any are left at the end
 
-                if j.github_key not in sink.children:  # issue belongs to this epic in Jira but not ZenHub
-                    sink.change_epic_membership(add=j.github_key)
-                else:  # issue belongs to this epic in both Jira and ZenHub
-                    sink_children.remove(j.github_key)  # remove it from the list so we can tell if any are left at the end
-
-            for issue in sink_children:  # any issues left in this list do not belong to the epic in Jira,
-                sink.change_epic_membership(remove=issue)  # so we remove them from the epic in ZenHub
+        for issue in sink_children:              # any issues left in this list do not belong to the epic in source,
+            sink.change_epic_membership(remove=issue)  # so they are removed from the epic in sink.
 
 
 if __name__ == '__main__':
-    a = JiraBoard(repo='TEST', org='ucsc-cgl')
-    b = ZenHubBoard(repo='sync-test', org='ucsc-cgp')
+    a = JiraRepo(repo_name='TEST', org='ucsc-cgl')
+    b = ZenHubRepo(repo_name='sync-test', org='ucsc-cgp')
     Sync.sync_board(a, b)
 
 

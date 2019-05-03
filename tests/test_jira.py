@@ -2,7 +2,7 @@ import datetime
 import unittest
 from unittest.mock import patch
 
-from src.jira import JiraBoard, JiraIssue
+from src.jira import JiraRepo, JiraIssue
 
 
 def mocked_response(*args, **kwargs):
@@ -94,12 +94,12 @@ class TestJiraIssue(unittest.TestCase):
         get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
 
         # Initialize a board with all its issues
-        self.board = JiraBoard(repo='TEST', org='org')
+        self.board = JiraRepo(repo_name='TEST', org='org')
         self.j = self.board.issues['REAL-ISSUE-1']
         self.k = self.board.issues['REAL-ISSUE-2']
 
         # Initialize a board by specifying one issue of interest
-        self.another_board = JiraBoard(repo='TEST', org='org', issues=['ISSUE-WITH-BLANKS'])
+        self.another_board = JiraRepo(repo_name='TEST', org='org', issues=['ISSUE-WITH-BLANKS'])
         self.l = self.another_board.issues['ISSUE-WITH-BLANKS']
 
     def test_happy_init(self):
@@ -113,7 +113,7 @@ class TestJiraIssue(unittest.TestCase):
     def test_issue_not_found_init(self, get_mocked_response, get_mocked_token):
         get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
         with self.assertRaises(ValueError):
-            JiraIssue(key='NONEXISTENT-ISSUE', org='org', board=self.board)
+            JiraIssue(key='NONEXISTENT-ISSUE', repo=self.board)
 
     def test_get_github_equivalent(self):
         self.assertEqual(self.j.get_github_equivalent(), ('abc', '25'))

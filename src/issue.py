@@ -3,19 +3,14 @@ class Issue:
 
     def __init__(self):
         # TODO can we get rid of any of these attributes? it seems like a lot
-        self.url = None  # str
-        self.headers = None  # dict[str, str]
 
         self.assignees = None  # list[str]
         self.created = None  # datetime object
 
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by ZenHub and github
-        self.github_repo = None  # str
-        self.github_org = None  # str
         self.issue_type = None  # str, for Jira: Epic or Task or Story or Bug, for ZenHub: Epic or Issue
         self.jira_key = None  # str, this identifier is only used by jira
-        self.jira_org = None  # str
         self.jira_sprint = None  # str
         self.milestone = None  # int, github's equivalent of sprints?
 
@@ -25,10 +20,7 @@ class Issue:
         self.summary = None  # str
         self.updated = None  # datetime object
 
-        self.children = None  # list[str], if this is an epic, lists issues belonging to it
-
-        self.jira_board = None
-        self.zenhub_board = None
+        self.repo_object = None  # Repo object, the repo in which this issue lives
 
     def update_from(self, source: 'Issue'):
         """
@@ -40,7 +32,8 @@ class Issue:
         # Headers, url, and token are specific to the issue being in Jira or ZenHub.
         # Description and assignees are more complicated to sync.
         self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token',
-                                                                                          'description', 'assignees']})
+                                                                                          'description', 'assignees',
+                                                                                          'repo_object']})
 
         # The ZenHub story point value cannot be set to None. If it's being updated from a Jira issue with no story
         # point value, set the story points to 0.
@@ -78,9 +71,15 @@ class Issue:
         print('\n')
 
 
-class Board:
+class Repo:
 
     def __init__(self):
-        self.issues = None
+        self.name = None
         self.org = None
-        self.repo = None
+        self.issues = None
+        self.url = None
+        self.headers = None
+        self.id = None
+
+
+

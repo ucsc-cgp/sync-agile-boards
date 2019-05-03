@@ -3,15 +3,17 @@ import unittest
 from unittest.mock import patch, call
 
 from src.issue import Issue
-from src.jira import JiraBoard, JiraIssue
+from src.jira import JiraRepo, JiraIssue
 from src.sync import Sync
 from src.utilities import get_jira_status, get_zenhub_pipeline
-from src.zenhub import ZenHubBoard, ZenHubIssue
+from src.zenhub import ZenHubRepo, ZenHubIssue
 
 
 @patch('requests.Response')
 def mock_response(url, *args, **kwargs):
-    """This test uses four mock issues to simulate a repo to sync."""
+    """This test uses four mock issues to simulate a repo to sync. For test_sync_epics, the methods that make API calls
+     are mocked out in order to test this method in isolation. For testing syncing an entire repo, all API responses
+    are mocked accurately to the format of an actual API response to thoroughly test everything."""
 
     class MockResponse:
         def __init__(self, json_data, status_code=200):
@@ -35,9 +37,12 @@ def mock_response(url, *args, **kwargs):
         return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'},
                              'is_epic': False})
 
-    # Mock response for request to get all children of issue 2
+    # Mock response for request to get ZenHub epic children
     elif url == 'https://api.zenhub.io/p1/repositories/123/epics/2':
         return MockResponse({'issues': [{'issue_number': 1}, {'issue_number': 3}]})
+
+    elif url == 'https://api.zenhub.io/p1/repositories/123/epics/3':
+        return MockResponse({'issues': []})
 
     # Mock response for getting pipeline ids
     elif url == 'https://api.zenhub.io/p1/repositories/123/board':
@@ -134,10 +139,11 @@ def mock_response(url, *args, **kwargs):
     elif url == 'https://api.github.com/repos/ucsc-cgp/abc':
         return MockResponse({'id': 123})
 
-    # Return a blank response indicating a successful update
+    # Return a blank response indicating a successful update. Some methods expect a 204 response on success
     elif any(x in url for x in ['transitions', 'issue/TEST-', 'epic/TEST-2/issue', 'epic/none/issue']):
         return MockResponse(None, status_code=204)
 
+    # Others expect a 200 response
     elif any(x in url for x in ['estimate', 'moves', 'convert_to_issue', 'convert_to_epic', 'update_issues']):
         return MockResponse(None)
 
@@ -148,6 +154,7 @@ def mock_response(url, *args, **kwargs):
 class TestSync(unittest.TestCase):
 
     def setUp(self):
+        """Patch all API requests with put, post, and get. Initialize test boards."""
 
         # NOTE it's important that the path here refers to where the method is used - the reference to it that's
         # imported in zenhub.py or jira.py, not the original location.
@@ -159,35 +166,38 @@ class TestSync(unittest.TestCase):
         self.patch_requests = patch('requests.get', side_effect=mock_response).start()
         self.patch_token = patch('src.access._get_token', return_value='token').start()
 
-        self.ZENHUB_BOARD = ZenHubBoard(repo='abc', org='ucsc-cgp', issues=['1', '2', '3', '4'])
-        self.ZENHUB_ISSUE_1 = self.ZENHUB_BOARD.issues['1']
+        self.ZENHUB_REPO = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['1', '2', '3', '4'])
+        self.ZENHUB_ISSUE_1 = self.ZENHUB_REPO.issues['1']
 
-        self.JIRA_BOARD = JiraBoard(repo='TEST', org='ucsc-cgl', issues=['TEST-1', 'TEST-2', 'TEST-3', 'TEST-4'])
-        self.JIRA_ISSUE_1 = self.JIRA_BOARD.issues['TEST-1']
+        self.JIRA_REPO = JiraRepo(repo_name='TEST', org='ucsc-cgl', issues=['TEST-1', 'TEST-2', 'TEST-3', 'TEST-4'])
+        self.JIRA_ISSUE_1 = self.JIRA_REPO.issues['TEST-1']
 
-    @patch('src.jira.JiraIssue.add_to_this_epic')
-    @patch('src.jira.JiraIssue.remove_from_this_epic')
+    @patch('src.jira.JiraIssue.change_epic_membership')
     @patch('src.zenhub.ZenHubIssue.change_epic_membership')
     @patch('src.zenhub.get_repo_id', return_value={'repo_id': '123'})
     @patch('src.zenhub.ZenHubIssue.get_epic_children', return_value=['3', '4'])
     @patch('src.jira.JiraIssue.get_epic_children', return_value=['TEST-1', 'TEST-3'])
-    def test_sync_epics(self, jira_children, zen_children, repo_id, change_zen_epic, jira_remove_epic, jira_add_epic):
+    def test_sync_epics(self, jira_children, zen_children, repo_id, change_zen_epic, change_jira_epic):
+        """Test the sync_epics method in isolation"""
 
-        j_epic = JiraIssue(board=self.JIRA_BOARD, org='ucsc-cgl', key='TEST-2')
-        z_epic = ZenHubIssue(board=self.ZENHUB_BOARD, org='ucsc-cgp', repo='abc', key='2')
+        j_epic = JiraIssue(repo=self.JIRA_REPO, key='TEST-2')
+        z_epic = ZenHubIssue(repo=self.ZENHUB_REPO, key='2')
 
         Sync.sync_epics(j_epic, z_epic)  # test syncing from Jira to ZenHub
-        change_zen_epic.assert_has_calls([call(add='1'), call(remove='4')])
+        self.assertEqual(change_zen_epic.call_args_list, [call(add='1'), call(remove='4')])
+
+        zen_children.return_value = ['3', '4']  # Not sure why but this needs to be reset
 
         Sync.sync_epics(z_epic, j_epic)  # test syncing from ZenHub to Jira
-        jira_add_epic.assert_called_with('TEST-4')
-        jira_remove_epic.assert_called_with('TEST-1')
+        self.assertEqual(change_jira_epic.call_args_list, [call(add='TEST-4'), call(remove='TEST-1')])
 
     @patch('src.jira.requests.put', side_effect=mock_response)
     @patch('src.jira.requests.post', side_effect=mock_response)
     def test_sync_board_zen_to_jira(self, jira_post, jira_put):
+        """Test syncing a repo from ZenHub to Jira.
+        Assert that API calls are made in the correct order with correct data."""
 
-        Sync.sync_board(self.ZENHUB_BOARD, self.JIRA_BOARD)
+        Sync.sync_board(self.ZENHUB_REPO, self.JIRA_REPO)
 
         # TEST-1 is updated
         self.assertEqual(jira_post.call_args_list[0][1]['json'], {'transition': {'id': 61}})  # TEST-1 to new issue
@@ -221,8 +231,10 @@ class TestSync(unittest.TestCase):
     @patch('src.zenhub.requests.put', side_effect=mock_response)
     @patch('src.zenhub.requests.post', side_effect=mock_response)
     def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put, github_patch):
+        """Test syncing a repo from Jira to ZenHub.
+        Assert that API calls are made in the correct order with correct data."""
 
-        Sync.sync_board(self.JIRA_BOARD, self.ZENHUB_BOARD)
+        Sync.sync_board(self.JIRA_REPO, self.ZENHUB_REPO)
 
         # 1 is updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[0][1]['json'], {'pipeline_id': '200', 'position': 'top'})

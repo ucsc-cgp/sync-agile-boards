@@ -1,13 +1,12 @@
 import datetime
-import requests
 import re
+import requests
 
 from src.access import get_access_params
-from src.issue import Board, Issue
-import pprint
+from src.issue import Repo, Issue
 
 
-class GitHubBoard(Board):
+class GitHubRepo(Repo):
 
     def __init__(self, repo: str = None, org: str = None):
 
@@ -120,8 +119,3 @@ class GitHubIssue(Issue):
 
         if r.status_code != 200:
             print(f'{r.status_code} Error updating GitHub: {r.reason}')
-
-
-if __name__ == '__main__':
-    g = GitHubBoard(repo='sync-test', org='ucsc-cgp')
-    print(g.issues)

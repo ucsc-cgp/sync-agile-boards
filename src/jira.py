@@ -3,19 +3,17 @@ from more_itertools import first
 import re
 import requests
 
-from settings import board_map, transitions
+from settings import transitions
 from src.access import get_access_params
-from src.issue import Board, Issue
+from src.issue import Repo, Issue
 from src.utilities import get_zenhub_pipeline
 
-import pprint
 
+class JiraRepo(Repo):
 
-class JiraBoard(Board):
-
-    def __init__(self, repo, org, issues: list = None):
+    def __init__(self, repo_name, org, issues: list = None):
         """Create a Project storing all issues belonging to the provided project key
-        :param repo: Required. The repo to work with e.g. TEST
+        :param repo_name: Required. The repo to work with e.g. TEST
         :param org: Required. The organization the repo belongs to, e.g. ucsc-cgl
         :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
         retrieve and update the listed issues.
@@ -25,13 +23,13 @@ class JiraBoard(Board):
         self.url = get_access_params('jira')['options']['server'] % org
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
 
-        self.jira_repo = repo
-        self.jira_org = org
+        self.name = repo_name
+        self.org = org
         self.issues = dict()
 
         if issues:
             for i in issues:
-                self.issues[i] = JiraIssue(key=i, org=self.jira_org, board=self)
+                self.issues[i] = JiraIssue(key=i, repo=self)
 
         else:  # By default, get all issues
             self.api_call()  # Get information for all issues in the project
@@ -46,21 +44,14 @@ class JiraBoard(Board):
         :param start: The index in the results to start at. Always call this function with start=0
         """
 
-        response = requests.get(f'{self.url}search?jql=project={self.jira_repo}&startAt={str(start)}',
+        response = requests.get(f'{self.url}search?jql=project={self.name}&startAt={str(start)}',
                                 headers=self.headers).json()
 
         for i in response['issues']:
-            self.issues[i['key']] = JiraIssue(response=i, org=self.jira_org, board=self)
+            self.issues[i['key']] = JiraIssue(response=i, repo=self)
 
         if response['total'] >= start + response['maxResults']:  # There could be another page of results
             self.api_call(start=start + response['maxResults'])
-
-    def get_all_epics(self):
-        # TODO is this used anywhere?
-        """Search for issues in this project with issuetype=Epic"""
-
-        r = requests.get(f'{self.url}search?jql=project={self.jira_repo} AND issuetype=Epic').json()
-        return r
 
     class CrypticNames:
         """A class to hold field ids with names that aren't self explanatory"""
@@ -71,27 +62,25 @@ class JiraBoard(Board):
 class JiraIssue(Issue):
 
     # TODO break up this huge method
-    def __init__(self, board: 'JiraBoard', key: str = None, org: str = None, response: dict = None):
+    def __init__(self, repo: 'JiraRepo', key: str = None, response: dict = None):
         """
         Create an Issue object from an issue key or from a portion of an API response
 
-        :param board: The JiraBoard object representing the repo this issue belongs to
+        :param repo: The JiraRepo object representing the repo this issue belongs to
         :param key: If specified, make an API call searching by this issue key
-        :param org: The organization the issue belongs to, e.g. ucsc-cgl
         :param response: If specified, don't make a new API call but use this response from an earlier one
         """
+
         super().__init__()
 
-        self.jira_board = board
-        self.url = self.jira_board.url
-        self.headers = self.jira_board.headers
-        self.jira_org = org
+        self.repo_object = repo
 
         if key:
-            r = requests.get(f'{self.url}search?jql=id={key}', headers=self.headers)
+            r = requests.get(f'{self.repo_object.url}search?jql=id={key}', headers=self.repo_object.headers)
 
             if r.status_code == 200:
                 r = r.json()
+
             else:
                 raise ValueError(f'{r.status_code} Error: {r.text}')
 
@@ -114,11 +103,11 @@ class JiraIssue(Issue):
         # Not all issue descriptions have the corresponding github issue listed in them
         self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)
 
-        if self.jira_board.CrypticNames.story_points in response['fields'].keys():
-            self.story_points = response['fields'][self.jira_board.CrypticNames.story_points]
+        if self.repo_object.CrypticNames.story_points in response['fields'].keys():
+            self.story_points = response['fields'][self.repo_object.CrypticNames.story_points]
 
-        if self.jira_board.CrypticNames.sprint in response['fields']:  # This custom field holds sprint information
-            if response['fields'][self.jira_board.CrypticNames.sprint]:
+        if self.repo_object.CrypticNames.sprint in response['fields']:  # This custom field holds sprint information
+            if response['fields'][self.repo_object.CrypticNames.sprint]:
                 # This field is a list containing a dictionary that's been put in string format.
                 # Sprints can have duplicate names. id is the unique identifier used by the API.
 
@@ -168,13 +157,13 @@ class JiraIssue(Issue):
         transition = {'transition': {'id': transitions[self.status]}}
 
         # Issue status has to be updated as a transition
-        r = requests.post(f'{self.url}issue/{self.jira_key}/transitions', headers=self.headers, json=transition)
+        r = requests.post(f'{self.repo_object.url}issue/{self.jira_key}/transitions', headers=self.repo_object.headers, json=transition)
 
         if r.status_code != 204:  # HTTP 204 No Content on success
             print(f'{r.status_code} Error transitioning')
 
         # Issue assignee, description, summary, and story points fields can be updated from a dictionary
-        r = requests.put(f'{self.url}issue/{self.jira_key}', headers=self.headers, json=self.dict_format())
+        r = requests.put(f'{self.repo_object.url}issue/{self.jira_key}', headers=self.repo_object.headers, json=self.dict_format())
 
         if r.status_code != 204:  # HTTP 204 No Content on success
             print(f'{r.status_code} Error updating Jira: {r.text}')
@@ -182,40 +171,56 @@ class JiraIssue(Issue):
     def post_new_issue(self):
         """Post this issue to Jira for the first time. The issue must not already exist."""
 
-        r = requests.post(f'{self.url}issue/', headers=self.headers, json=self.dict_format())
+        r = requests.post(f'{self.repo_object.url}issue/', headers=self.repo_object.headers, json=self.dict_format())
 
         if r.status_code != 201:  # HTTP 201 means created
             print(f'{r.status_code} Error posting to Jira: {r.text}')
 
         self.jira_key = r.json()['key']  # keep the key that Jira assigned to this issue when creating it
 
-    def add_to_this_epic(self, issue_key):
-        """Make the given issue belong to this epic (self). If it is already in an epic, that will be overwritten."""
+    # def add_to_this_epic(self, issue_key):
+    #     """Make the given issue belong to this epic (self). If it is already in an epic, that will be overwritten."""
+    #
+    #     issues = {'issues': [issue_key]}
+    #     old_api_url = first(self.url.split('api'))  # remove 'api/latest' from the url
+    #     # This operation seems to work only in the old API version 1.0
+    #     r = requests.post(f'{old_api_url}agile/1.0/epic/{self.jira_key}/issue', json=issues, headers=self.headers)
+    #
+    #     if r.status_code != 204:  # HTTP 204 No content on success
+    #         print(f'{r.status_code} Error adding to Jira epic: {r.text}')
 
-        issues = {'issues': [issue_key]}
-        old_api_url = first(self.url.split('api'))  # remove 'api/latest' from the url
-        # This operation seems to work only in the old API version 1.0
-        r = requests.post(f'{old_api_url}agile/1.0/epic/{self.jira_key}/issue', json=issues, headers=self.headers)
+    # def remove_from_this_epic(self, issue_key):
+    #     issues = {'issues': [issue_key]}
+    #     old_api_url = first(self.url.split('api'))  # remove 'api/latest' from the url
+    #
+    #     r = requests.post(f'{old_api_url}agile/1.0/epic/none/issue', json=issues, headers=self.headers)
+    #
+    #     if r.status_code != 204:  # HTTP 200 No content on success
+    #         print(f'{r.status_code} Error removing from Jira epic: {r.text}')
 
-        if r.status_code != 204:  # HTTP 204 No content on success
-            print(f'{r.status_code} Error adding to Jira epic: {r.text}')
+    def change_epic_membership(self, add: str = None, remove: str = None):
+        """Add or remove given issue from this epic (self). Specify one issue to add or remove as a kwarg"""
 
-    def remove_from_this_epic(self, issue_key):
-        issues = {'issues': [issue_key]}
-        old_api_url = first(self.url.split('api'))  # remove 'api/latest' from the url
+        if add and not remove:
+            epic_name = self.jira_key
+        elif remove and not add:
+            epic_name = 'none'
+        else:
+            raise RuntimeError('change_epic_membership must be called with exactly one argument')
 
-        r = requests.post(f'{old_api_url}agile/1.0/epic/none/issue', json=issues, headers=self.headers)
+        issues = {'issues': [add or remove]}
+        old_api_url = first(self.repo_object.url.split('api'))  # remove 'api/latest' from the url
+        r = requests.post(f'{old_api_url}agile/1.0/epic/{epic_name}/issue', json=issues, headers=self.repo_object.headers)
 
-        if r.status_code != 204:  # HTTP 200 No content on success
-            print(f'{r.status_code} Error removing from Jira epic: {r.text}')
+        if r.status_code != 204:  # HTTP 204 on success
+            print(f'{r.status_code} Error changing Jira epic membership: {r.text}')
 
     def get_epic_children(self):
         """If this issue is an epic, get all its children"""
-        r = requests.get(f"{self.url}search?jql=cf[10008]='{self.jira_key}'", headers=self.headers)
+        r = requests.get(f"{self.repo_object.url}search?jql=cf[10008]='{self.jira_key}'", headers=self.repo_object.headers)
 
         if r.status_code == 200:  # HTTP 200 OK
             children = [i['key'] for i in r.json()['issues']]
             return children
         else:
             print(f'{r.status_code} Error getting Jira epic children: {r.text}')
-
