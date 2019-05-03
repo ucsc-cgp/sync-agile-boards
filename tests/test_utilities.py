@@ -44,6 +44,8 @@ def mocked_response(*args, **kwargs):
             404,
             'Not Found'
         )
+    else:
+        raise ValueError(args)
 
 
 class TestUtilities(unittest.TestCase):
@@ -54,15 +56,17 @@ class TestUtilities(unittest.TestCase):
         url_observed = _get_repo_url('somerepo', 'someorg')
         self.assertEqual(url_expected, url_observed, 'GitHub repo URL malformed')
 
+    @patch('src.access._get_token', return_value='99999999')
     @patch('requests.get', side_effect=mocked_response)
-    def test_get_repo_id(self, mocked_resp):
+    def test_get_repo_id(self, mocked_resp, mock_token):
         mocked_resp = mocked_response('https://api.github.com/repos/DataBiosphere/azul',)
         repo_id = get_repo_id('azul', 'DataBiosphere')
         self.assertEqual(mocked_resp.json_data['id'], repo_id['repo_id'])
 
+    @patch('src.access._get_token', return_value='99999999')
     @patch('src.utilities._get_repo_url')
     @patch('requests.get', side_effect=mocked_response)
-    def test_get_repo_id_non_existent_repo(self, mocked_resp, mock_get_repo_url):
+    def test_get_repo_id_non_existent_repo(self, mocked_resp, mock_get_repo_url, mock_token):
         mocked_resp = mocked_response('https://api.github.com/repos/DataBiosphere/foobar',)
         mock_get_repo_url.return_value = 'https://api.github.com/repos/DataBiosphere/foobar'
         repo_id = get_repo_id('foobar', 'DataBiosphere')
