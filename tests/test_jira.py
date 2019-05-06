@@ -94,12 +94,12 @@ class TestJiraIssue(unittest.TestCase):
         get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
 
         # Initialize a board with all its issues
-        self.board = JiraRepo(repo_name='TEST', org='org')
+        self.board = JiraRepo(repo_name='TEST', jira_org='org')
         self.j = self.board.issues['REAL-ISSUE-1']
         self.k = self.board.issues['REAL-ISSUE-2']
 
         # Initialize a board by specifying one issue of interest
-        self.another_board = JiraRepo(repo_name='TEST', org='org', issues=['ISSUE-WITH-BLANKS'])
+        self.another_board = JiraRepo(repo_name='TEST', jira_org='org', issues=['ISSUE-WITH-BLANKS'])
         self.l = self.another_board.issues['ISSUE-WITH-BLANKS']
 
     def test_happy_init(self):

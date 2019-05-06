@@ -44,10 +44,6 @@ class Sync:
             elif source.issue_type != 'Epic' and destination.issue_type == 'Epic':
                 destination.demote_epic_to_issue()
 
-            # Some fields like description and title have to be updated thru GitHub
-            destination.github_equivalent.update_from(source)
-            destination.github_equivalent.update_remote()
-
         destination.update_from(source)
         destination.update_remote()
 
@@ -88,7 +84,7 @@ class Sync:
 
 
 if __name__ == '__main__':
-    a = JiraRepo(repo_name='TEST', org='ucsc-cgl')
+    a = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl')
     b = ZenHubRepo(repo_name='sync-test', org='ucsc-cgp')
     Sync.sync_board(a, b)
 

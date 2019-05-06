@@ -169,7 +169,7 @@ class TestSync(unittest.TestCase):
         self.ZENHUB_REPO = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['1', '2', '3', '4'])
         self.ZENHUB_ISSUE_1 = self.ZENHUB_REPO.issues['1']
 
-        self.JIRA_REPO = JiraRepo(repo_name='TEST', org='ucsc-cgl', issues=['TEST-1', 'TEST-2', 'TEST-3', 'TEST-4'])
+        self.JIRA_REPO = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-1', 'TEST-2', 'TEST-3', 'TEST-4'])
         self.JIRA_ISSUE_1 = self.JIRA_REPO.issues['TEST-1']
 
     @patch('src.jira.JiraIssue.change_epic_membership')

@@ -190,11 +190,15 @@ class ZenHubIssue(Issue):
         self.status = get_jira_status(self)
 
     def update_remote(self):
-        # TODO the ZenHub API only supports editing issue points, pipeline, and epic status. Other changes can be made
-        #  thru the GitHub API. Updating the issue in GitHub as well should be incorporated into this method.
+        """Push the changes to the remote issue in ZenHub and GitHub"""
 
+        # Points and pipeline can be updated thru ZenHub's API
         self._update_issue_points()
         self._update_issue_pipeline()
+
+        # Other fields like description and title have to be updated thru GitHub
+        self.github_equivalent.update_from(self)
+        self.github_equivalent.update_remote()
 
     def _update_issue_points(self):
         """Update the remote issue's points estimate to the value currently held by the Issue object"""
