@@ -17,24 +17,34 @@ class GitHubRepo(Repo):
         self.github_repo = repo
         self.github_org = org
         self.issues = dict()
-        self.api_call(1)
+        self.api_call()
 
-    def api_call(self, start):
-        """Make API requests until all results have been retrieved. API responses are split into pages of 30 results"""
+    def api_call(self, start=1, updated_since: datetime = None):
+        """
+        Make API requests until all results have been retrieved. API responses are split into pages of 30 results
 
-        r = requests.get(f'{self.url}{self.github_repo}/issues?state=all&page={start}', headers=self.headers)
+        :param start: The index in the results to start at. Always call this function with start=0
+        :param updated_since: If specified, get just the issues that have been updated since the time given in this
+        datetime object. Otherwise, get all issues in the repo."""
 
-        if r.status_code != 200:
-            raise ValueError(f'{r.status_code} Error: {r.text}')
+        if updated_since:  # format the datetime object to use as a search filter
+            timestamp_filter = f'+updated:>={updated_since.strftime("%Y-%m-%dT%H:%M:%SZ")}'
         else:
-            response = r.json()
+            timestamp_filter = ''  # otherwise don't filter
 
-        for issue_dict in response:
+        r = requests.get(f'https://api.github.com/search/issues?q=repo:{self.github_org}/{self.github_repo}{timestamp_filter}&page={start}')
+
+        if r.status_code == 200:
+            response = r.json()
+        else:
+            raise ValueError(f'{r.status_code} Error: {r.text}')
+
+        for issue_dict in response['items']:
             self.issues[str(issue_dict['number'])] = GitHubIssue(org=self.github_org, r=issue_dict)
 
         # The 'Link' field in the header gives a link to the next page labelled with rel="next', if there is one
         if 'rel="next"' in r.headers['Link']:
-            self.api_call(start + 1)
+            self.api_call(start=start + 1, updated_since=updated_since)
 
 
 class GitHubIssue(Issue):
@@ -119,3 +129,7 @@ class GitHubIssue(Issue):
 
         if r.status_code != 200:
             print(f'{r.status_code} Error updating GitHub: {r.reason}')
+
+
+if __name__ == '__main__':
+    g = GitHubRepo(org='ucsc-cgp', repo='sync-agile-boards')

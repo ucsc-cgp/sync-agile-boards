@@ -8,7 +8,7 @@ from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.utilities import get_zenhub_pipeline
 
-
+import pprint
 class JiraRepo(Repo):
 
     def __init__(self, repo_name, jira_org, issues: list = None):
@@ -32,26 +32,33 @@ class JiraRepo(Repo):
                 self.issues[i] = JiraIssue(key=i, repo=self)
 
         else:  # By default, get all issues
-            self.api_call()  # Get information for all issues in the project
+            self.api_call(updated_since=datetime.datetime.now().replace(hour=8))  # Get information for all issues in the project
 
         # self.github_org, self.github_repo = board_map[jira_org][repo]
 
-    def api_call(self, start=0):
+    def api_call(self, start=0, updated_since: datetime = None):
         """
         Make API calls until all results have been retrieved. Jira API responses can be paginated, defaulting to 50
         results per page, so a new call has to be made until the total is reached.
 
         :param start: The index in the results to start at. Always call this function with start=0
+        :param updated_since: If specified, get just the issues that have been updated since the time given in this
+        datetime object. Otherwise, get all issues in the repo.
         """
 
-        response = requests.get(f'{self.url}search?jql=project={self.name}&startAt={str(start)}',
+        if updated_since:  # format the timestamp to use in a Jira query
+            timestamp_filter = f" AND updated>='{updated_since.strftime('%Y-%m-%d %H:%M')}'"
+        else:
+            timestamp_filter = ''  # otherwise do not filter by timestamp
+
+        response = requests.get(f'{self.url}search?jql=project={self.name}{timestamp_filter}&startAt={str(start)}',
                                 headers=self.headers).json()
 
         for i in response['issues']:
             self.issues[i['key']] = JiraIssue(response=i, repo=self)
 
         if response['total'] >= start + response['maxResults']:  # There could be another page of results
-            self.api_call(start=start + response['maxResults'])
+            self.api_call(start=start + response['maxResults'], updated_since=updated_since)
 
     class CrypticNames:
         """A class to hold field ids with names that aren't self explanatory"""
@@ -80,7 +87,6 @@ class JiraIssue(Issue):
 
             if r.status_code == 200:
                 r = r.json()
-
             else:
                 raise ValueError(f'{r.status_code} Error: {r.text}')
 
@@ -204,3 +210,9 @@ class JiraIssue(Issue):
             return children
         else:
             print(f'{r.status_code} Error getting Jira epic children: {r.text}')
+
+
+if __name__ == '__main__':
+    j = JiraRepo(jira_org='ucsc-cgl', repo_name='TEST')
+    print(j.issues)
+

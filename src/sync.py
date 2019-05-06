@@ -1,7 +1,7 @@
 import time
 
-from src.jira import JiraRepo, JiraIssue
-from src.zenhub import ZenHubRepo, ZenHubIssue
+from src.jira import JiraRepo
+from src.zenhub import ZenHubRepo
 
 
 class Sync:
