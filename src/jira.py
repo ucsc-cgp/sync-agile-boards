@@ -11,20 +11,20 @@ from src.utilities import get_zenhub_pipeline
 
 class JiraRepo(Repo):
 
-    def __init__(self, repo_name, org, issues: list = None):
+    def __init__(self, repo_name, jira_org, issues: list = None):
         """Create a Project storing all issues belonging to the provided project key
         :param repo_name: Required. The repo to work with e.g. TEST
-        :param org: Required. The organization the repo belongs to, e.g. ucsc-cgl
+        :param jira_org: Required. The organization the repo belongs to, e.g. ucsc-cgl
         :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
         retrieve and update the listed issues.
         """
 
         super().__init__()
-        self.url = get_access_params('jira')['options']['server'] % org
+        self.url = get_access_params('jira')['options']['server'] % jira_org
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
 
         self.name = repo_name
-        self.org = org
+        self.org = jira_org
         self.issues = dict()
 
         if issues:
@@ -34,7 +34,7 @@ class JiraRepo(Repo):
         else:  # By default, get all issues
             self.api_call()  # Get information for all issues in the project
 
-        # self.github_org, self.github_repo = board_map[org][repo]
+        # self.github_org, self.github_repo = board_map[jira_org][repo]
 
     def api_call(self, start=0):
         """
