@@ -8,7 +8,7 @@ from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.utilities import get_zenhub_pipeline
 
-import pprint
+
 class JiraRepo(Repo):
 
     def __init__(self, repo_name, jira_org, issues: list = None):
@@ -32,7 +32,7 @@ class JiraRepo(Repo):
                 self.issues[i] = JiraIssue(key=i, repo=self)
 
         else:  # By default, get all issues
-            self.api_call(updated_since=datetime.datetime.now().replace(hour=8))  # Get information for all issues in the project
+            self.api_call()  # Get information for all issues in the project
 
         # self.github_org, self.github_repo = board_map[jira_org][repo]
 
