@@ -13,11 +13,13 @@ class Sync:
     def sync_board(source: 'Board', sink: 'Board'):
 
         if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
-            for issue in source.issues.values():
+            for key, issue in source.issues.items():
+                print(key)
                 Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
 
         elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
-            for issue in source.issues.values():
+            for key, issue in source.issues.items():
+                print(key)
                 for i in range(3):  # Allow for 3 tries
                     try:
                         if issue.github_key:
