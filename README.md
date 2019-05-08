@@ -9,7 +9,7 @@ Use token-based authorization to access the ZenHub, GitHub, and Jira APIs. Go to
 * https://id.atlassian.com/manage/api-tokens to get the Jira token
 
 The default location the code searches for the tokens are `~/.zenhub_config`, `~/.github_config`, and `~/.jira_config`, respectively.
-Note that the Jira config file must contain both username and token in the format `you@gmail.com:your-token`. For ZenHub and GitHub only the token is necessary.
+Note that the Jira config file must contain both username and token base 64 encoded in the format `you@gmail.com:your-token`. For ZenHub and GitHub only the unencoded token is necessary.
 
 ## Return information from ZenHub
 
@@ -30,15 +30,14 @@ This should return the following output:
 }
 ```
 
-## Return information from Jira
+## Demo
 
-Create a virtual environment for Python 3 and activate it, install the requirements, and in a terminal run
-```bash
-python src/access_jira.py <story number>
+From the `src` directory, execute
+
 ```
-
-This should return story number, status, story point value, timestamps of when created and last updated, and the total number of issues in the project.
-
+python demo.py
+```
+to sync a repo.
 
 ## Tests
 

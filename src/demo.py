@@ -1,42 +1,20 @@
-from src.jira import JiraIssue
-from src.zenhub import ZenHubIssue
-import sys
+from src.jira import JiraRepo
+from src.sync import Sync
+from src.zenhub import ZenHubRepo
 
 
 def main():
-    """Print information about the specified Jira issue, get the corresponding GitHub issue, change its status to
-    In Progress, update the remote Jira issue, and print its information after updating."""
+    """Print information about the specified Jira issue, get the corresponding GitHub issue, update the remote
+    Jira issue, and print its information after updating."""
 
-    key = sys.argv[1]
+    jira_board = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-97', 'TEST-98', 'TEST-42', 'TEST-43'])
+    zen_board = ZenHubRepo(repo_name='sync-test', org='ucsc-cgp', issues=['14', '63', '7', '8'])
+    for i in jira_board.issues.values():
+        i.print()
+    for j in zen_board.issues.values():
+        j.print()
 
-    demo_issue = JiraIssue(key=key, org='ucsc-cgl')
-
-    print(f'Story number: {demo_issue.jira_key}')
-    print(f'Summary: {demo_issue.summary}')
-    print(f'Status: {demo_issue.status}')
-    print(f'Story points: {demo_issue.story_points or None}')
-    print(f'Created: {demo_issue.created}')
-    print(f'Updated: {demo_issue.updated}')
-    print(f'Assignee: {demo_issue.assignees}')
-    print(f'Sprint: {demo_issue.jira_sprint}\n\n')
-    print(f'GitHub issue: {demo_issue.github_repo} {demo_issue.github_key}')
-
-    z = ZenHubIssue(key=demo_issue.github_key, repo=demo_issue.github_repo, org='ucsc-cgp')
-
-    demo_issue.update_from(z)
-
-    demo_issue.update_remote()
-
-    demo_issue = JiraIssue(key=key, org='ucsc-cgl')  # refresh issue information
-    print('After updating:')
-    print(f'Story number: {demo_issue.jira_key}')
-    print(f'Summary: {demo_issue.summary}')
-    print(f'Status: {demo_issue.status}')
-    print(f'Story points: {demo_issue.story_points or None}')
-    print(f'Created: {demo_issue.created}')
-    print(f'Updated: {demo_issue.updated}')
-    print(f'Assignee: {demo_issue.assignees}')
-    print(f'Sprint: {demo_issue.jira_sprint}\n\n')
+    Sync.sync_board(jira_board, zen_board)
 
 
 if __name__ == '__main__':

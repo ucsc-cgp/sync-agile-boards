@@ -5,8 +5,9 @@ import os
 import errno
 import logging
 
+from src.access import get_access_params
 from src.issue import Issue
-from settings import default_orgs, urls
+from settings import urls
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -14,18 +15,18 @@ FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
 
-def get_repo_id(repo_name, org_name=default_orgs['github']):
+def get_repo_id(repo_name, org_name):
     url = _get_repo_url(repo_name, org_name)
-    print(url)
-    r = requests.get(url)
+    headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
+    response = requests.get(url, headers=headers)
 
-    response = {'status_code': r.status_code}
-    if r.status_code == 200:
-        response_json = r.json()
-        response['repo_id'] = response_json['id']
+    repo_id_dict = {'status_code': response.status_code}
+    if response.status_code == 200:
+        response_json = response.json()
+        repo_id_dict['repo_id'] = response_json['id']
     else:
-        response['repo_id'] = r.reason
-    return response
+        repo_id_dict['repo_id'] = response.text
+    return repo_id_dict
 
 
 def check_for_git_config(git_config_file):
@@ -53,18 +54,18 @@ def _get_repo_url(repo_name, org_name):
 
 def get_zenhub_pipeline(i: 'Issue'):
     backlog_map = {
-        'New Issue': 'New Issue',
+        'New Issue': 'New Issues',
         'Icebox': 'Icebox',
-        'To Do': 'Epic',
-        'In Progress': 'Product Backlog',
-        'In Review': 'Product Backlog',
-        'Merged': 'Product Backlog',
+        'To Do': 'Backlog',
+        'In Progress': 'In Progress',
+        'In Review': 'Review/QA',
+        'Merged': 'Merged',
         'Done': 'Done',
         'Closed': 'Closed'
     }
     sprint_map = {
-        'New Issue': 'New Issue',
-        'To Do': 'Sprint Backlog',
+        'New Issue': 'New Issues',
+        'To Do': 'Backlog',
         'In Progress': 'In Progress',
         'In Review': 'Review/QA',
         'Merged': 'Merged',
@@ -80,9 +81,8 @@ def get_zenhub_pipeline(i: 'Issue'):
 def get_jira_status(i: 'Issue'):
     map = {
         'New Issues': 'New Issue',
-        'Product Backlog': 'To Do',
+        'Backlog': 'To Do',
         'Icebox': 'Rejected',  # ??
-        'Sprint Backlog': 'To Do',
         'In Progress': 'In Progress',
         'Review/QA': 'In Review',
         'Merged': 'Merged',
@@ -92,5 +92,11 @@ def get_jira_status(i: 'Issue'):
     }
 
     return map[i.pipeline]
+
+
+class CrypticNames:
+    """A class to hold field ids with names that aren't self explanatory"""
+    sprint = 'customfield_10010'
+    story_points = 'customfield_10014'
 
 

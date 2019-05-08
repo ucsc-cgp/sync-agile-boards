@@ -3,7 +3,7 @@
 import re
 import unittest
 from unittest.mock import patch
-from src.zenhub import ZenHub, ZenHubIssue
+from src.zenhub import ZenHub, ZenHubRepo, ZenHubIssue
 
 
 def mocked_response(*args, **kwargs):
@@ -47,7 +47,7 @@ def mocked_response(*args, **kwargs):
             'Unprocessable Entity'
         )
     elif '/board' in args[0]:  # The request used for determining pipeline ids in _get_pipeline_ids().
-        return MockResponse({'pipelines': [{'id': 1, 'name': 'Done', 'issues': []}, {'id': 2, 'name': 'Icebox', 'issues': []}]}, 200, 'OK')
+        return MockResponse({'pipelines': [{'id': 1, 'name': 'Done', 'issues': []}, {'id': 2, 'name': 'Review/QA', 'issues': []}]}, 200, 'OK')
 
     elif 'https://api.github.com/repos/ucsc-cgp/abc/issues/' in args[0]:  # Mock GitHub issue information
         match_obj = re.search(r'issues/(\d*)', args[0])
@@ -75,7 +75,8 @@ class TestZenHub(unittest.TestCase):
             p.start()
             self.addCleanup(p.stop)
 
-        self.zen = ZenHubIssue(key='42', repo='abc', org='ucsc-cgp')
+        self.board = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['42'])
+        self.zen = self.board.issues['42']
 
     @patch('src.zenhub.get_access_params')
     @patch('src.zenhub.get_repo_id')
@@ -157,13 +158,13 @@ class TestZenHub(unittest.TestCase):
     def test_update_issue_points(self, mock_put_request):
         """Test that ZenHub.update_issue_points() works."""
         mock_put_request.return_value.status_code = 200
-        self.zen._update_issue_points(3)
+        self.zen._update_issue_points()
 
         request_args = list(mock_put_request.call_args)
 
         # Check that the put request is made correctly.
-        expected_dict = {'headers': self.zen.headers.copy()}
-        expected_dict.update({'json': {'estimate': 3}})
+        expected_dict = {'headers': self.board.headers.copy()}
+        expected_dict.update({'json': {'estimate': 2}})
         self.assertIn(expected_dict, request_args)
 
     @patch('src.zenhub.get_repo_id', return_value={'repo_id': 123456789, 'status_code': 200})
@@ -175,7 +176,7 @@ class TestZenHub(unittest.TestCase):
         mock_url_creator.return_value = f'https://api.zenhub.io/p1/repositories/123456789/issues/42/moves'
         mock_post_change_pipeline.return_value.status_code = 200
 
-        self.zen._update_issue_pipeline('Icebox')
+        self.zen._update_issue_pipeline()
 
         mock_post_change_pipeline.assert_called()
         request_args = list(mock_post_change_pipeline.call_args)
@@ -184,7 +185,7 @@ class TestZenHub(unittest.TestCase):
         self.assertIn((mock_url_creator.return_value,), request_args)  # MagicMock stores this as a tuple.
 
         # Check that the json_dict is in the put request.
-        expected_dict = {'headers': self.zen.headers.copy()}
+        expected_dict = {'headers': self.board.headers.copy()}
         expected_dict.update({'json': {'pipeline_id': 2, 'position': 'top'}})
         self.assertIn(expected_dict, request_args)
 
@@ -206,8 +207,8 @@ class TestZenHub(unittest.TestCase):
         self.assertIn((mock_url_creator.return_value,), request_args)  # MagicMock stores this as a tuple.
 
         # Check that the json_dict is in the put request.
-        expected_dict = {'headers': self.zen.headers.copy()}
-        expected_dict.update({'json': {'issues': [{'repo_id': self.zen.repo_id, 'issue_number': str(42)}]}})
+        expected_dict = {'headers': self.board.headers.copy()}
+        expected_dict.update({'json': {'issues': [{'repo_id': self.board.id, 'issue_number': str(42)}]}})
         self.assertIn(expected_dict, request_args)
 
 

@@ -2,7 +2,7 @@ import datetime
 import unittest
 from unittest.mock import patch
 
-from src.jira import JiraIssue
+from src.jira import JiraRepo, JiraIssue
 
 
 def mocked_response(*args, **kwargs):
@@ -17,51 +17,9 @@ def mocked_response(*args, **kwargs):
             return self.json_data
 
     # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
-    if args == ('https://mock-org.atlassian.net/search?jql=id=REAL-ISSUE-1',):
-
+    if args == ('https://mock-org.atlassian.net/search?jql=id=ISSUE-WITH-BLANKS',):
         return MockResponse(
         {'issues':  # A condensed API response for an issue
-            [{'fields': {
-                'assignee': {'name': 'aaaaa'},
-                'created': '2019-02-05T14:52:11.501-0800',
-                'customfield_10008': None,
-                'customfield_10014': 7.0,
-                'description': 'test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
-                               '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 25{color}\n',
-                'issuetype': {'id': '10001',
-                              'name': 'Story'},
-                'sprint': None,
-                'status': {'id': '10001',
-                           'name': 'Done'},
-                'summary': 'Test 1',
-                'updated': '2019-02-20T14:34:08.870-0800'},
-            'id': '15546',
-            'key': 'TEST-1'}]})
-
-    elif args == ('https://mock-org.atlassian.net/search?jql=id=REAL-ISSUE-2',):
-
-        return MockResponse(
-        {'issues':  # A condensed API response for a different issue
-            [{'fields': {
-                'assignee': None,
-                'created': '2019-02-05T14:52:11.501-0800',
-                'customfield_10008': None,
-                'customfield_10014': 3.0,
-                'description': 'another test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
-                               '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 26{color}\n',
-                'issuetype': {'id': '10001',
-                              'name': 'Story'},
-                'sprint': None,
-                'status': {'name': 'In Progress'},
-                'summary': 'Test 2',
-                'updated': '2019-02-20T14:34:08.870-0800'},
-            'id': '15546',
-            'key': 'TEST-2'}]})
-
-    elif args == ('https://mock-org.atlassian.net/search?jql=id=ISSUE-WITH-BLANKS',):
-
-        return MockResponse(
-        {'issues':  # A condensed API response for a different issue
             [{'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
@@ -74,7 +32,7 @@ def mocked_response(*args, **kwargs):
                 'summary': 'Test 3',
                 'updated': '2019-02-20T14:34:08.870-0800'},
             'id': '15546',
-            'key': 'TEST-2'}]})
+            'key': 'ISSUE-WITH-BLANKS'}]})
 
     elif args == ('https://mock-org.atlassian.net/search?jql=id=NONEXISTENT-ISSUE',):
         return MockResponse(
@@ -82,6 +40,46 @@ def mocked_response(*args, **kwargs):
                                '"id".'],
             'warningMessages': []
             }
+        )
+
+    elif args == ('https://mock-org.atlassian.net/search?jql=project=TEST&startAt=0',):
+        return MockResponse(
+            {'total': 1,
+             'maxResults': 50,
+             'issues':  # A condensed API response for all issues in a board
+                [{'fields': {
+                    'assignee': {'name': 'aaaaa'},
+                    'created': '2019-02-05T14:52:11.501-0800',
+                    'customfield_10008': None,
+                    'customfield_10014': 7.0,
+                    'description': 'test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
+                                   '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 25{color}\n',
+                    'issuetype': {'id': '10001',
+                                  'name': 'Story'},
+                    'sprint': None,
+                    'status': {'id': '10001',
+                               'name': 'Done'},
+                    'summary': 'Test 1',
+                    'updated': '2019-02-20T14:34:08.870-0800'},
+                    'id': '15546',
+                    'key': 'REAL-ISSUE-1'},
+                 {'fields': {
+                    'assignee': None,
+                    'created': '2019-02-05T14:52:11.501-0800',
+                    'customfield_10008': None,
+                    'customfield_10014': 3.0,
+                    'description': 'another test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
+                                   '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 26{color}\n',
+                    'issuetype': {'id': '10001',
+                                  'name': 'Story'},
+                    'sprint': None,
+                    'status': {'name': 'In Progress'},
+                    'summary': 'Test 2',
+                    'updated': '2019-02-20T14:34:08.870-0800'},
+                    'id': '15546',
+                    'key': 'REAL-ISSUE-2'},
+                 ]
+             }
         )
 
     else:
@@ -94,9 +92,15 @@ class TestJiraIssue(unittest.TestCase):
     @patch('src.jira.requests.get', side_effect=mocked_response)
     def setUp(self, get_mocked_response, get_mocked_token):
         get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
-        self.j = JiraIssue(key='REAL-ISSUE-1', org='org')
-        self.k = JiraIssue(key='REAL-ISSUE-2', org='org')
-        self.l = JiraIssue(key='ISSUE-WITH-BLANKS', org='org')
+
+        # Initialize a board with all its issues
+        self.board = JiraRepo(repo_name='TEST', jira_org='org')
+        self.j = self.board.issues['REAL-ISSUE-1']
+        self.k = self.board.issues['REAL-ISSUE-2']
+
+        # Initialize a board by specifying one issue of interest
+        self.another_board = JiraRepo(repo_name='TEST', jira_org='org', issues=['ISSUE-WITH-BLANKS'])
+        self.l = self.another_board.issues['ISSUE-WITH-BLANKS']
 
     def test_happy_init(self):
         self.assertEqual(self.j.status, 'Done')
@@ -109,7 +113,7 @@ class TestJiraIssue(unittest.TestCase):
     def test_issue_not_found_init(self, get_mocked_response, get_mocked_token):
         get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
         with self.assertRaises(ValueError):
-            JiraIssue(key='NONEXISTENT-ISSUE', org='org')
+            JiraIssue(key='NONEXISTENT-ISSUE', repo=self.board)
 
     def test_get_github_equivalent(self):
         self.assertEqual(self.j.get_github_equivalent(), ('abc', '25'))
