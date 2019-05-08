@@ -17,7 +17,7 @@ def mocked_response(*args, **kwargs):
         def __init__(self, json_data, status_code, reason):
             self.json_data = json_data
             self.status_code = status_code
-            self.reason = reason
+            self.text = reason
 
         def json(self):
             return self.json_data
@@ -70,7 +70,7 @@ class TestUtilities(unittest.TestCase):
         mocked_resp = mocked_response('https://api.github.com/repos/DataBiosphere/foobar',)
         mock_get_repo_url.return_value = 'https://api.github.com/repos/DataBiosphere/foobar'
         repo_id = get_repo_id('foobar', 'DataBiosphere')
-        self.assertEqual(mocked_resp.reason, repo_id['repo_id'])
+        self.assertEqual(mocked_resp.text, repo_id['repo_id'])
         self.assertEqual(mocked_resp.status_code, repo_id['status_code'])
 
     def test_check_for_git_config(self):

@@ -31,24 +31,14 @@ This should return the following output:
 ```
 
 ## Demo
-To run the demo, edit demo.py to include your repo information:
+
+From the `src` directory, execute
 
 ```
-jira_board = JiraRepo(repo_name='<your Jira repo>', org='<your Jira organization.', issues=[])
-zen_board = ZenHubRepo(repo_name='<your GitHub repo', org='<your GitHub organization', issues=[])
+python demo.py
 ```
-If the `issues` list is empty, all issues in the repo will be synchronized. For demo purposes, you may want to specify
-just a few issues to use, like this: `issues=['TEST-1', TEST-2']`. API calls will be made only for the issues you list,
-making the demo run a lot faster.
+to sync a repo.
 
-Edit line 17 to indicate the desired synchronization direction: `Sync.sync_board(jira_board, zen_board)` will update the
-ZenHub board look like the Jira board. Swap the arguments to sync the other way.
-
-From the src directory, execute
-
-```python demo.py```
-
-This will print out information about all the issues and synchronize the repos.
 ## Tests
 
 To run all tests execute

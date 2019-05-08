@@ -18,15 +18,15 @@ logging.basicConfig(format=FORMAT)
 def get_repo_id(repo_name, org_name):
     url = _get_repo_url(repo_name, org_name)
     headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
-    r = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
 
-    response = {'status_code': r.status_code}
-    if r.status_code == 200:
-        response_json = r.json()
-        response['repo_id'] = response_json['id']
+    repo_id_dict = {'status_code': response.status_code}
+    if response.status_code == 200:
+        response_json = response.json()
+        repo_id_dict['repo_id'] = response_json['id']
     else:
-        response['repo_id'] = r.reason
-    return response
+        repo_id_dict['repo_id'] = response.text
+    return repo_id_dict
 
 
 def check_for_git_config(git_config_file):
@@ -92,5 +92,11 @@ def get_jira_status(i: 'Issue'):
     }
 
     return map[i.pipeline]
+
+
+class CrypticNames:
+    """A class to hold field ids with names that aren't self explanatory"""
+    sprint = 'customfield_10010'
+    story_points = 'customfield_10014'
 
 

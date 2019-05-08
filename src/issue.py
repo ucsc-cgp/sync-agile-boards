@@ -2,7 +2,6 @@
 class Issue:
 
     def __init__(self):
-        # TODO can we get rid of any of these attributes? it seems like a lot
 
         self.assignees = None  # list[str]
         self.created = None  # datetime object
@@ -80,6 +79,3 @@ class Repo:
         self.url = None
         self.headers = None
         self.id = None
-
-
-

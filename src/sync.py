@@ -81,11 +81,3 @@ class Sync:
 
         for issue in sink_children:              # any issues left in this list do not belong to the epic in source,
             sink.change_epic_membership(remove=issue)  # so they are removed from the epic in sink.
-
-
-if __name__ == '__main__':
-    a = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl')
-    b = ZenHubRepo(repo_name='sync-test', org='ucsc-cgp')
-    Sync.sync_board(a, b)
-
-

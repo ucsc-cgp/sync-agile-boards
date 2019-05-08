@@ -6,7 +6,7 @@ import requests
 from settings import transitions
 from src.access import get_access_params
 from src.issue import Repo, Issue
-from src.utilities import get_zenhub_pipeline
+from src.utilities import CrypticNames, get_zenhub_pipeline
 
 
 class JiraRepo(Repo):
@@ -28,8 +28,8 @@ class JiraRepo(Repo):
         self.issues = dict()
 
         if issues:
-            for i in issues:
-                self.issues[i] = JiraIssue(key=i, repo=self)
+            for issue in issues:
+                self.issues[issue] = JiraIssue(key=issue, repo=self)
 
         else:  # By default, get all issues
             self.api_call()  # Get information for all issues in the project
@@ -54,28 +54,23 @@ class JiraRepo(Repo):
         response = requests.get(f'{self.url}search?jql=project={self.name}{timestamp_filter}&startAt={str(start)}',
                                 headers=self.headers).json()
 
-        for i in response['issues']:
-            self.issues[i['key']] = JiraIssue(response=i, repo=self)
+        for issue in response['issues']:
+            self.issues[issue['key']] = JiraIssue(content=issue, repo=self)
 
         if response['total'] >= start + response['maxResults']:  # There could be another page of results
             self.api_call(start=start + response['maxResults'], updated_since=updated_since)
-
-    class CrypticNames:
-        """A class to hold field ids with names that aren't self explanatory"""
-        sprint = 'customfield_10010'
-        story_points = 'customfield_10014'
 
 
 class JiraIssue(Issue):
 
     # TODO break up this huge method
-    def __init__(self, repo: 'JiraRepo', key: str = None, response: dict = None):
+    def __init__(self, repo: 'JiraRepo', key: str = None, content: dict = None):
         """
         Create an Issue object from an issue key or from a portion of an API response
 
         :param repo: The JiraRepo object representing the repo this issue belongs to
         :param key: If specified, make an API call searching by this issue key
-        :param response: If specified, don't make a new API call but use this response from an earlier one
+        :param content: If specified, don't make a new API call but use this response from an earlier one
         """
 
         super().__init__()
@@ -83,41 +78,41 @@ class JiraIssue(Issue):
         self.repo = repo
 
         if key:
-            r = requests.get(f'{self.repo.url}search?jql=id={key}', headers=self.repo.headers)
+            response = requests.get(f'{self.repo.url}search?jql=id={key}', headers=self.repo.headers)
 
-            if r.status_code == 200:
-                r = r.json()
+            if response.status_code == 200:
+                json = response.json()
             else:
-                raise ValueError(f'{r.status_code} Error: {r.text}')
+                raise ValueError(f'{response.status_code} Error: {response.text}')
 
-            if 'issues' in r.keys():  # If the key doesn't match any issues, this will be an empty list
-                response = r['issues'][0]  # Get the one and only issue in the response
+            if 'issues' in json.keys():  # If the key doesn't match any issues, this will be an empty list
+                content = json['issues'][0]  # Get the one and only issue in the response
             else:
                 raise ValueError('No issue matching this id was found')
 
-        if response['fields']['assignee']:
-            self.assignees = [response['fields']['assignee']['name']]
-        self.created = datetime.datetime.strptime(response['fields']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
-        self.description = response['fields']['description']
-        self.issue_type = response['fields']['issuetype']['name']
-        self.jira_key = response['key']
-        self.status = response['fields']['status']['name']
+        if content['fields']['assignee']:
+            self.assignees = [content['fields']['assignee']['name']]
+        self.created = datetime.datetime.strptime(content['fields']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
+        self.description = content['fields']['description']
+        self.issue_type = content['fields']['issuetype']['name']
+        self.jira_key = content['key']
+        self.status = content['fields']['status']['name']
 
-        self.summary = response['fields']['summary']
-        self.updated = datetime.datetime.strptime(response['fields']['updated'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
+        self.summary = content['fields']['summary']
+        self.updated = datetime.datetime.strptime(content['fields']['updated'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
 
         # Not all issue descriptions have the corresponding github issue listed in them
         self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)
 
-        if self.repo.CrypticNames.story_points in response['fields'].keys():
-            self.story_points = response['fields'][self.repo.CrypticNames.story_points]
+        if CrypticNames.story_points in content['fields'].keys():
+            self.story_points = content['fields'][CrypticNames.story_points]
 
-        if self.repo.CrypticNames.sprint in response['fields']:  # This custom field holds sprint information
-            if response['fields'][self.repo.CrypticNames.sprint]:
+        if CrypticNames.sprint in content['fields']:  # This custom field holds sprint information
+            if content['fields'][CrypticNames.sprint]:
                 # This field is a list containing a dictionary that's been put in string format.
                 # Sprints can have duplicate names. id is the unique identifier used by the API.
 
-                match_obj = re.search(r'id=(\w*),', response['fields']['customfield_10010'][0])
+                match_obj = re.search(r'id=(\w*),', content['fields']['customfield_10010'][0])
                 if match_obj:
                     self.jira_sprint = int(match_obj.group(1))
                 else:
@@ -210,9 +205,4 @@ class JiraIssue(Issue):
             return children
         else:
             print(f'{r.status_code} Error getting Jira epic children: {r.text}')
-
-
-if __name__ == '__main__':
-    j = JiraRepo(jira_org='ucsc-cgl', repo_name='TEST')
-    print(j.issues)
 
