@@ -183,7 +183,6 @@ class ZenHubIssue(Issue):
 
         # Get the most current update timestamp for this issue, whether in GitHub or ZenHub
         # Changes to pipeline and estimate are not reflected in GitHub, so ZenHub events must be checked
-        # TODO does moving between epics show up?
         self.updated = max(self.github_equivalent.updated, self.get_most_recent_event())
 
         self.status = get_jira_status(self)
