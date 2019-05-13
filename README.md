@@ -12,8 +12,8 @@ The default location the code searches for the tokens are `~/.sync-agile-board-z
 For ZenHub and GitHub only the API token is necessary.
 
 ### Jira authorization
-The Jira config file must contain both, username and token, in the format `you@email.com:your-token`. `your-token` 
-needs to be Base64-encoded. If you Jira API token is `abc`, run in Python 3:
+The Jira config file must contain both, username and token, in the format `you@email.com:your-token`, where `your-token` 
+needs to be Base64-encoded. For instance, if your Jira API token is `your-token`, run in Python 3:
 ```python
 import base64
 my_auth = 'you@email.com:' + 'your-token'
@@ -22,7 +22,6 @@ print(encoded_token)
    eW91QGVtYWlsLmNvbTp5b3VyLXRva2Vu
 ``` 
 Write `encoded_token` to `~/.sync-agile-board-jira_config`.
-
 
 ## Return information from ZenHub
 
