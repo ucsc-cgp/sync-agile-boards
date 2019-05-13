@@ -75,8 +75,9 @@ class GitHubIssue(Issue):
         self.github_key = content['number']
         self.jira_key = self.get_jira_equivalent()
         self.summary = content['title']
-        self.created = datetime.datetime.strptime(content['created_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S')
-        self.updated = datetime.datetime.strptime(content['updated_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S')
+        # Get datetime objects from timestamp strings and adjust for time zone
+        self.created = datetime.datetime.strptime(content['created_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S') - datetime.timedelta(hours=7)
+        self.updated = datetime.datetime.strptime(content['updated_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S') - datetime.timedelta(hours=7)
 
         if content['milestone']:
             self.milestone = content['milestone']['number']

@@ -71,7 +71,7 @@ class TestGitHubIssue(unittest.TestCase):
         self.assertEqual(self.g.assignees, ['aaaaa'])
         self.assertEqual(self.g.issue_type, None)
         self.assertEqual(self.g.story_points, None)
-        self.assertEqual(self.g.created, datetime.datetime(2019, 2, 20, 22, 51, 33))
+        self.assertEqual(self.g.created, datetime.datetime(2019, 2, 20, 15, 51, 33))
         self.assertEqual(self.g.github_key, 100)
         self.assertEqual(self.g.github_repo, 'REPO')
         self.assertEqual(self.g.github_org, 'SOME_ORG')

@@ -17,7 +17,6 @@ logger.setLevel(logging.INFO)
 FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
-import pprint
 
 def main():
     org_name = sys.argv[1]
@@ -315,15 +314,7 @@ class ZenHubIssue(Issue):
 
         if content:
             # Get the first, most recent event in the list. Get its timestamp and convert to a datetime object,
-            # ignoring the milliseconds and Z after the period
-            return datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
+            # ignoring the milliseconds and Z after the period and adjusting 7 hours back for the time zone
+            return datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S') - datetime.timedelta(hours=7)
         else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
             return datetime.datetime.min
-
-
-if __name__ == '__main__':
-    z = ZenHubRepo(repo_name='sync-test', org='ucsc-cgp', issues=['64'])
-    z.issues['64'].get_most_recent_event()
-
-
-

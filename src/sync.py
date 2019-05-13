@@ -14,12 +14,12 @@ class Sync:
 
         if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
             for key, issue in source.issues.items():
-                print(key)
+                print(f'syncing {sink.issues[issue.jira_key]} from {key}')
                 Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
 
         elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
             for key, issue in source.issues.items():
-                print(key)
+                print(f'syncing {sink.issues[issue.github_key]} from {key}')
                 for i in range(3):  # Allow for 3 tries
                     try:
                         if issue.github_key:
@@ -35,6 +35,12 @@ class Sync:
                         print(repr(e))
                         time.sleep(10)  # The API rate limit may have been reached
                         continue
+
+    @staticmethod
+    def mirror_sync(jira_repo: 'JiraRepo', zenhub_repo: 'ZenHubRepo'):
+        for issue in jira_repo.issues.values():
+            twin = zenhub_repo.issues[issue.github_key]
+            Sync.sync_from_most_current(issue, twin)
 
     @staticmethod
     def sync_from_specified_source(source: 'Issue', destination: 'Issue'):
@@ -56,8 +62,10 @@ class Sync:
     def sync_from_most_current(a: 'Issue', b: 'Issue'):
 
         if a.updated > b.updated:  # a is the most current
+            print(f'syncing {b} (updated at {b.updated}) from {a} (updated at {a.updated})')
             Sync.sync_from_specified_source(a, b)  # use a as the source
         else:
+            print(f'syncing {a} (updated at {a.updated}) from {b} (updated at {b.updated})')
             Sync.sync_from_specified_source(b, a)
 
     @staticmethod
@@ -83,3 +91,8 @@ class Sync:
 
         for issue in sink_children:              # any issues left in this list do not belong to the epic in source,
             sink.change_epic_membership(remove=issue)  # so they are removed from the epic in sink.
+
+if __name__ == '__main__':
+    j = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-100', 'TEST-42', 'TEST-43'])
+    z = ZenHubRepo(repo_name='sync-test', org='ucsc-cgp', issues=['7', '8', '64'])
+    Sync.mirror_sync(j, z)

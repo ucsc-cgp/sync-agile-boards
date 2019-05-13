@@ -205,4 +205,3 @@ class JiraIssue(Issue):
             return children
         else:
             print(f'{r.status_code} Error getting Jira epic children: {r.text}')
-

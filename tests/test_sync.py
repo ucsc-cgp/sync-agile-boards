@@ -2,10 +2,8 @@ import re
 import unittest
 from unittest.mock import patch, call
 
-from src.issue import Issue
 from src.jira import JiraRepo, JiraIssue
 from src.sync import Sync
-from src.utilities import get_jira_status, get_zenhub_pipeline
 from src.zenhub import ZenHubRepo, ZenHubIssue
 
 
@@ -44,6 +42,20 @@ def mock_response(url, *args, **kwargs):
     elif url == 'https://api.zenhub.io/p1/repositories/123/epics/3':
         return MockResponse({'issues': []})
 
+    # Issue events in ZenHub
+    elif url == 'https://api.zenhub.io/p1/repositories/123/issues/1/events':
+        return MockResponse(
+            [{'created_at': '2019-05-08T22:13:43.512Z',
+              'from_estimate': {'value': 8},
+              'to_estimate': {'value': 4},
+              'type': 'estimateIssue'},
+             {'created_at': '2019-04-20T14:12:40.900Z',
+              'from_estimate': {'value': 4},
+              'to_estimate': {'value': 8},
+              'type': 'estimateIssue'}])
+    elif 'events' in url:
+        return MockResponse([])
+
     # Mock response for getting pipeline ids
     elif url == 'https://api.zenhub.io/p1/repositories/123/board':
         return MockResponse({'pipelines': [{'id': '100', 'name': 'New Issues'},
@@ -66,7 +78,7 @@ def mock_response(url, *args, **kwargs):
                 'sprint': None,
                 'status': {'name': 'In Progress'},
                 'summary': 'a test',
-                'updated': '2019-02-20T14:34:08.870-0800'},
+                'updated': '2019-05-11T14:34:08.870-0800'},
             'key': 'TEST-1'}]})
 
     elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-2':
@@ -81,7 +93,7 @@ def mock_response(url, *args, **kwargs):
                 'sprint': None,
                 'status': {'name': 'In Review'},
                 'summary': 'Test 2',
-                'updated': '2019-02-20T14:34:08.870-0800'},
+                'updated': '2019-04-21T15:55:08.870-0800'},
             'key': 'TEST-2'}]})
 
     elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-3':
@@ -131,7 +143,7 @@ def mock_response(url, *args, **kwargs):
             'created_at': '2019-02-20T22:51:33Z',
             'milestone': None,
             'title': None,
-            'updated_at': '2019-02-20T22:51:33Z',
+            'updated_at': '2019-04-21T22:51:33Z',
             'number': match_obj.group(1)
             })
 
@@ -267,6 +279,17 @@ class TestSync(unittest.TestCase):
         self.assertEqual(github_patch.call_args_list[3][1]['json'], {'title': 'Test 4',
                                                                      'body': 'synchronized with github: Repository Name: abc Issue Number: 4',
                                                                      'labels': []})
+
+    @patch('src.sync.Sync.sync_from_specified_source')
+    def test_mirror_sync(self, sync):
+        """Assert that two issues are synced from Jira to ZenHub and two from ZenHub to Jira, based on timestamps."""
+        Sync.mirror_sync(self.JIRA_REPO, self.ZENHUB_REPO)
+
+        # Call args list has the addresses of issues being synced, which change each time, so just look at issue type
+        called_with = [(call[0][0].__class__.__name__, call[0][1].__class__.__name__) for call in sync.call_args_list]
+        expected = [('JiraIssue', 'ZenHubIssue'), ('JiraIssue', 'ZenHubIssue'), ('ZenHubIssue', 'JiraIssue'),
+                    ('ZenHubIssue', 'JiraIssue')]
+        self.assertEqual(called_with, expected)
 
     def tearDown(self):
         patch.stopall()  # Stop all the patches that were started in setUp
