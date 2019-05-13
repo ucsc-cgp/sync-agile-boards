@@ -174,7 +174,7 @@ class TestSync(unittest.TestCase):
 
     @patch('src.jira.JiraIssue.change_epic_membership')
     @patch('src.zenhub.ZenHubIssue.change_epic_membership')
-    @patch('src.zenhub.get_repo_id', return_value={'repo_id': '123'})
+    @patch('src.zenhub.ZenHubRepo.get_repo_id', return_value={'repo_id': '123'})
     @patch('src.zenhub.ZenHubIssue.get_epic_children', return_value=['3', '4'])
     @patch('src.jira.JiraIssue.get_epic_children', return_value=['TEST-1', 'TEST-3'])
     def test_sync_epics(self, jira_children, zen_children, repo_id, change_zen_epic, change_jira_epic):
@@ -227,9 +227,9 @@ class TestSync(unittest.TestCase):
                                                                             'summary': 'Test 4',
                                                                             'customfield_10014': 2}})
 
-    @patch('src.github.requests.patch', side_effect=mock_response)
-    @patch('src.zenhub.requests.put', side_effect=mock_response)
-    @patch('src.zenhub.requests.post', side_effect=mock_response)
+    @patch('src.issue.requests.patch', side_effect=mock_response)
+    @patch('src.issue.requests.put', side_effect=mock_response)
+    @patch('src.issue.requests.post', side_effect=mock_response)
     def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put, github_patch):
         """Test syncing a repo from Jira to ZenHub.
         Assert that API calls are made in the correct order with correct data."""

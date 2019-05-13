@@ -1,3 +1,4 @@
+import requests
 
 class Issue:
 
@@ -70,6 +71,8 @@ class Issue:
         print('\n')
 
 
+
+
 class Repo:
 
     def __init__(self):
@@ -79,3 +82,32 @@ class Repo:
         self.url = None
         self.headers = None
         self.id = None
+
+    def api_call(self, action, url_tail: str, url_head: str = None, json: dict = None, page: int = '',
+                 success_code: int = 200) -> dict:
+        """Method to handle all API calls
+        :param action: A requests method to call, e.g. requests.get or requests.post
+        :param url_tail: The part of the url that is unique to this request. Appended to url_head.
+        :param url_head: Defaults to self.repo.url, e.g. 'https://api.zenhub.io/p1/repositories/'. Can be set to
+                         another value, like for using the old API version.
+        :param json: The dictionary-formatted payload to send with the request.
+        :param page: For paginated responses, the page/response number upon which to make the next call.
+        :param success_code: The HTTP response code that should be returned on success. Defaults to 200; may need to be
+                             set to 204 for some cases.
+        """
+
+        response = action(f'{url_head or self.url}{url_tail}{page}', headers=self.headers, json=json)
+
+        if response.status_code != success_code:
+            raise RuntimeError(f'{response.status_code} Error: {response.text}')
+
+        if page:  # Need to check if there is another page of results to get
+            if 'total' and 'maxResults' in response.keys():  # For Jira
+                if response['total'] >= page + response['maxResults']:  # There could be another page of results
+                    return response.update(self.api_call(action, url_tail, url_head=url_head, json=json,
+                                                         page=page + response['maxResults'], success_code=success_code))
+            elif 'rel="next"' in response.headers['Link']:  # For GitHub
+                return response.update(self.api_call(action, url_tail, url_head=url_head, json=json, page=page + 1,
+                                                     success_code=success_code))
+
+        return response.json()  # This is the last or only page
