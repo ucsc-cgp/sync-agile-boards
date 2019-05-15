@@ -1,3 +1,4 @@
+import requests
 
 
 class Issue:
@@ -46,15 +47,6 @@ class Issue:
         else:                                             # Otherwise, something is wrong
             raise RuntimeError(f'Issue {self.jira_key} or {self.github_key} has no description')
 
-    def fill_in_blanks_from(self, source: 'Issue'):
-        # TODO is this used anywhere?
-        """If a field in the sink issue (self) is blank, fill it with info from the source issue."""
-
-        for attribute in source.__dict__.keys():
-            if attribute not in ['headers', 'url', 'token', 'description']:  # ignore attributes specific to the source
-                if self.__dict__[attribute] is None:
-                    self.__dict__[attribute] = source.__dict__[attribute]  # fill in missing info
-
     @staticmethod
     def merge_descriptions(source: str, sink: str) -> str:
         """Merge issue descriptions by copying over description text without changing the sync info put in by Unito"""
@@ -94,20 +86,23 @@ class Repo:
         """
 
         response = action(f'{url_head or self.url}{url_tail}{page}', headers=self.headers, json=json)
-        print(self.headers)
+
         if response.status_code != success_code:
             raise RuntimeError(f'{response.status_code} Error: {response.text}')
         else:
-            content = response.json()
+            if action == requests.get:
+                content = response.json()
+            else:
+                content = {}  # Some other requests return blank json content and decoding them causes an error
 
         if page:  # Need to check if there is another page of results to get
-            print(response.headers)
             if 'total' and 'maxResults' in content.keys():  # For Jira
                 if content['total'] >= page + content['maxResults']:  # There could be another page of results
-                    return content.update(self.api_call(action, url_tail, url_head=url_head, json=json,
-                                                        page=page + content['maxResults'], success_code=success_code))
-            elif 'rel="next"' in response.headers['Link']:  # For GitHub
-                return content.update(self.api_call(action, url_tail, url_head=url_head, json=json, page=page + 1,
-                                                    success_code=success_code))
+                    content.update(self.api_call(action, url_tail, url_head=url_head, json=json,
+                                                 page=page + content['maxResults'], success_code=success_code))
 
-        return content  # This is the last or only page
+            elif 'rel="next"' in response.headers['Link']:  # For GitHub, update the 'items' list with the next page
+                content['items'].extend(self.api_call(action, url_tail, url_head=url_head, json=json, page=page + 1,
+                                                      success_code=success_code)['items'])
+
+        return content

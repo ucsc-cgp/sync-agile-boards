@@ -49,7 +49,7 @@ class ZenHubRepo(Repo):
         # ZenHub API endpoint for repo issues only lists open ones, so I'm using the GitHub API to get all issues
         g = GitHubRepo(repo_name=self.name, org=self.org)
         for key, issue in g.issues.items():
-            self.issues[key] = ZenHubIssue(repo=self)
+            self.issues[key] = ZenHubIssue(repo=self, key=key)
 
     def _get_pipeline_ids(self):
         """Determine the valid pipeline IDs for this repo"""
@@ -132,7 +132,7 @@ class ZenHubIssue(Issue):
             self.repo.api_call(requests.post, f'{self.repo.id}/issues/{self.github_key}/moves', json=json_dict)
 
         else:
-            print("not a valid pipeline")
+            print(f'Cannot update issue {self.github_key} pipeline: not a valid pipeline')
 
     def promote_issue_to_epic(self):
         """Convert an issue to an epic"""
@@ -166,3 +166,7 @@ class ZenHubIssue(Issue):
             raise ValueError('need to specify an epic to add to or remove from')
 
         self.repo.api_call(requests.post, f'{self.repo.id}/epics/{self.github_key}/update_issues', json=content)
+
+if __name__ == '__main__':
+    z = ZenHubRepo(org='ucsc-cgp', repo_name='sync-test')
+    print(z.issues.keys())

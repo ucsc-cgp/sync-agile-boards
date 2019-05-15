@@ -28,11 +28,10 @@ class GitHubRepo(Repo):
                 self.issues[i] = GitHubIssue(repo=self, key=i)
         else:  # Get all issues in the repo_name
             content = self.api_call(requests.get, url_head='https://api.github.com/',
-                                    url_tail=f'search/issues?q=repo_name:{self.org}/{self.name}{timestamp_filter}&page=', page=1)
+                                    url_tail=f'search/issues?q=repo:{self.org}/{self.name}{timestamp_filter}&page=', page=1)
 
             for issue_dict in content['items']:
-                print(issue_dict['number'])
-                self.issues[str(issue_dict['number'])] = GitHubIssue(content=issue_dict)
+                self.issues[str(issue_dict['number'])] = GitHubIssue(key=issue_dict['number'], repo=self, content=issue_dict)
 
 
 class GitHubIssue(Issue):
@@ -49,7 +48,7 @@ class GitHubIssue(Issue):
 
         self.repo = repo
 
-        if key and repo:
+        if not content:
             content = self.repo.api_call(requests.get, f'{self.repo.name}/issues/{str(key)}')
 
             if 'number' not in content.keys():  # If the key doesn't match any issues, this field won't exist

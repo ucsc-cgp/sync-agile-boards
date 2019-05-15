@@ -1,8 +1,5 @@
 import time
 
-from src.jira import JiraRepo
-from src.zenhub import ZenHubRepo
-
 
 class Sync:
     """Assumptions:
@@ -14,7 +11,11 @@ class Sync:
 
         if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
             for issue in source.issues.values():
-                Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
+                try:
+                    Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
+                except KeyError as e:
+                    print(e)
+                    print(f'Skipping issue {issue.github_key}: {issue.jira_key} not found in Jira board')
 
         elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
             for issue in source.issues.values():
@@ -24,14 +25,15 @@ class Sync:
                             try:
                                 Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
                             except KeyError as e:
-                                raise ValueError(f'Issue {issue.github_key} referenced from {issue.jira_key} not found in board')
+                                print(e)
+                                print(f'Skipping issue {issue.jira_key}: {issue.github_key} not found in ZenHub board')
                         else:
-                            print("skipping this issue")
+                            print(f'Skipping issue {issue.jira_key}: no GitHub link identified')
                         break
 
-                    except RuntimeError as e:
+                    except RuntimeError as e:  # The API rate limit may have been reached
                         print(repr(e))
-                        time.sleep(10)  # The API rate limit may have been reached
+                        time.sleep(10)  # Try again in 10 seconds, hopefully the API limit will have reset
                         continue
 
     @staticmethod

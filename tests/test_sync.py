@@ -2,11 +2,9 @@ import re
 import unittest
 from unittest.mock import patch, call
 
-from src.issue import Issue
-from src.jira import JiraRepo, JiraIssue
+from src.jira import JiraIssue, JiraRepo
 from src.sync import Sync
-from src.utilities import get_jira_status, get_zenhub_pipeline
-from src.zenhub import ZenHubRepo, ZenHubIssue
+from src.zenhub import ZenHubIssue, ZenHubRepo
 
 
 @patch('requests.Response')
@@ -227,9 +225,9 @@ class TestSync(unittest.TestCase):
                                                                             'summary': 'Test 4',
                                                                             'customfield_10014': 2}})
 
-    @patch('src.issue.requests.patch', side_effect=mock_response)
-    @patch('src.issue.requests.put', side_effect=mock_response)
-    @patch('src.issue.requests.post', side_effect=mock_response)
+    @patch('src.github.requests.patch', side_effect=mock_response)
+    @patch('src.zenhub.requests.put', side_effect=mock_response)
+    @patch('src.zenhub.requests.post', side_effect=mock_response)
     def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put, github_patch):
         """Test syncing a repo from Jira to ZenHub.
         Assert that API calls are made in the correct order with correct data."""
