@@ -3,11 +3,9 @@
 from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.github import GitHubRepo, GitHubIssue
-from src.utilities import get_jira_status, _get_repo_url, get_repo_id
+from src.utilities import get_jira_status, _get_repo_url
 
-import json
 import logging
-import os
 import requests
 import sys
 
@@ -63,7 +61,7 @@ class ZenHubRepo(Repo):
         """Return the repo ID retrieved thru GitHub"""
         url = _get_repo_url(self.name, self.org)
         content = self.api_call(requests.get, url_head=url, url_tail='')
-        return str(content['repo_id'])
+        return str(content['id'])
 
 
 class ZenHubIssue(Issue):
@@ -140,7 +138,7 @@ class ZenHubIssue(Issue):
         """Convert an issue to an epic"""
 
         json_dict = {'issues': [{'repo_id': self.repo.id, 'issue_number': self.github_key}]}
-        self.repo.api_call(requests.post, f'{self.repo.id}/epics/{self.github_key}/convert_to_epic', json=json_dict)
+        self.repo.api_call(requests.post, f'{self.repo.id}/issues/{self.github_key}/convert_to_epic', json=json_dict)
 
     def demote_epic_to_issue(self):
         """Convert an epic into a regular issue"""

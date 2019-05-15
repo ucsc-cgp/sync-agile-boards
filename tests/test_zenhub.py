@@ -1,8 +1,9 @@
 #!/usr/env/python3
-
+import datetime
 import re
 import unittest
 from unittest.mock import patch
+
 from src.zenhub import ZenHubRepo
 
 
@@ -76,7 +77,9 @@ class TestZenHub(unittest.TestCase):
         self.zen = self.board.issues['42']
 
     def test_happy_init(self):
-        self.assertEqual(self.zen.)
+        self.assertEqual(self.zen.story_points, 2)
+        self.assertEqual(self.zen.pipeline, 'Review/QA')
+        self.assertEqual(self.zen.issue_type, 'Story')
 
     @patch('src.zenhub.requests.put')
     def test_update_issue_points(self, mock_put_request):

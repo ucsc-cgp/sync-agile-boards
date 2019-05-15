@@ -166,5 +166,5 @@ class JiraIssue(Issue):
 
 
 if __name__ == '__main__':
-    j = JiraRepo(jira_org='ucsc-cgl', repo_name='TEST', issues=['TEST-42'])
-    print(j.issues['TEST-42'].get_epic_children())
+    j = JiraRepo(jira_org='ucsc-cgl', repo_name='TEST')
+    print(j.issues)

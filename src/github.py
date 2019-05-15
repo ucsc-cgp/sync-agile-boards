@@ -28,9 +28,10 @@ class GitHubRepo(Repo):
                 self.issues[i] = GitHubIssue(repo=self, key=i)
         else:  # Get all issues in the repo_name
             content = self.api_call(requests.get, url_head='https://api.github.com/',
-                                    url_tail=f'search/issues?q=repo_name:{self.org}/{self.repo.name}{timestamp_filter}&page=', page=1)
+                                    url_tail=f'search/issues?q=repo_name:{self.org}/{self.name}{timestamp_filter}&page=', page=1)
 
             for issue_dict in content['items']:
+                print(issue_dict['number'])
                 self.issues[str(issue_dict['number'])] = GitHubIssue(content=issue_dict)
 
 
@@ -98,3 +99,6 @@ class GitHubIssue(Issue):
         """Update this issue on GitHub. The issue must already exist."""
 
         self.repo.api_call(requests.patch, f'{self.repo.name}/issues/{self.github_key}', json=self.dict_format())
+
+if __name__ == '__main__':
+    g = GitHubRepo(repo_name='sync-test', org='ucsc-cgp')

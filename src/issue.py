@@ -1,4 +1,4 @@
-import requests
+
 
 class Issue:
 
@@ -27,7 +27,6 @@ class Issue:
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
         """
-        # TODO sync assignees
 
         # Headers, url, and token are specific to the issue being in Jira or ZenHub.
         # Description and assignees are more complicated to sync.
@@ -71,8 +70,6 @@ class Issue:
         print('\n')
 
 
-
-
 class Repo:
 
     def __init__(self):
@@ -97,17 +94,20 @@ class Repo:
         """
 
         response = action(f'{url_head or self.url}{url_tail}{page}', headers=self.headers, json=json)
-
+        print(self.headers)
         if response.status_code != success_code:
             raise RuntimeError(f'{response.status_code} Error: {response.text}')
+        else:
+            content = response.json()
 
         if page:  # Need to check if there is another page of results to get
-            if 'total' and 'maxResults' in response.keys():  # For Jira
-                if response['total'] >= page + response['maxResults']:  # There could be another page of results
-                    return response.update(self.api_call(action, url_tail, url_head=url_head, json=json,
-                                                         page=page + response['maxResults'], success_code=success_code))
+            print(response.headers)
+            if 'total' and 'maxResults' in content.keys():  # For Jira
+                if content['total'] >= page + content['maxResults']:  # There could be another page of results
+                    return content.update(self.api_call(action, url_tail, url_head=url_head, json=json,
+                                                        page=page + content['maxResults'], success_code=success_code))
             elif 'rel="next"' in response.headers['Link']:  # For GitHub
-                return response.update(self.api_call(action, url_tail, url_head=url_head, json=json, page=page + 1,
-                                                     success_code=success_code))
+                return content.update(self.api_call(action, url_tail, url_head=url_head, json=json, page=page + 1,
+                                                    success_code=success_code))
 
-        return response.json()  # This is the last or only page
+        return content  # This is the last or only page
