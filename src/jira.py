@@ -1,5 +1,6 @@
 import datetime
 from more_itertools import first
+import pytz
 import re
 import requests
 
@@ -92,14 +93,17 @@ class JiraIssue(Issue):
 
         if content['fields']['assignee']:
             self.assignees = [content['fields']['assignee']['name']]
-        self.created = datetime.datetime.strptime(content['fields']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
         self.description = content['fields']['description']
         self.issue_type = content['fields']['issuetype']['name']
         self.jira_key = content['key']
         self.status = content['fields']['status']['name']
 
         self.summary = content['fields']['summary']
-        self.updated = datetime.datetime.strptime(content['fields']['updated'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
+
+        # Convert the timestamps into datetime objects and localize them to PST time
+        local_tz = pytz.timezone('America/Los_Angeles')  # Jira timestamps depend on location
+        self.created = local_tz.localize(datetime.datetime.strptime(content['fields']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S'))
+        self.updated = local_tz.localize(datetime.datetime.strptime(content['fields']['updated'].split('.')[0], '%Y-%m-%dT%H:%M:%S'))
 
         # Not all issue descriptions have the corresponding github issue listed in them
         self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)

@@ -1,5 +1,6 @@
 #!/usr/env/python3
 import datetime
+import pytz
 import re
 import unittest
 from unittest.mock import patch
@@ -28,7 +29,7 @@ def mocked_response(*args, **kwargs):
              'pipeline': {'name': 'Review/QA'},
              'is_epic': False},
             200,
-            'Ok'
+            'OK'
         )
 
     # Issue events
@@ -44,7 +45,7 @@ def mocked_response(*args, **kwargs):
               'to_estimate': {'value': 8},
               'type': 'estimateIssue'}],
             200,
-            'Ok'
+            'OK'
         )
 
     # Non-existent issue number:
@@ -53,7 +54,7 @@ def mocked_response(*args, **kwargs):
         return MockResponse(
             {'message': 'Issue not found'},
             404,
-            'Not found'
+            'Not Found'
         )
     # Non-existent repo number
     elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',) and \
@@ -231,7 +232,7 @@ class TestZenHub(unittest.TestCase):
     @patch('requests.get', side_effect=mocked_response)
     def test_get_most_recent_event(self, get):
         """Test that get_most_recent_event() gets a correct datetime object from a list of events"""
-        expected = datetime.datetime(2019, 5, 8, 15, 13, 43)
+        expected = datetime.datetime(2019, 5, 8, 22, 13, 43, tzinfo=pytz.timezone('UTC'))
         self.assertEqual(self.zen.get_most_recent_event(), expected)
 
 

@@ -1,4 +1,5 @@
 import datetime
+import pytz
 import re
 import requests
 
@@ -75,9 +76,11 @@ class GitHubIssue(Issue):
         self.github_key = content['number']
         self.jira_key = self.get_jira_equivalent()
         self.summary = content['title']
+
         # Get datetime objects from timestamp strings and adjust for time zone
-        self.created = datetime.datetime.strptime(content['created_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S') - datetime.timedelta(hours=7)
-        self.updated = datetime.datetime.strptime(content['updated_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S') - datetime.timedelta(hours=7)
+        default_tz = pytz.timezone('UTC')  # GitHub timestamps are all in UTC time
+        self.created = default_tz.localize(datetime.datetime.strptime(content['created_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S'))
+        self.updated = default_tz.localize(datetime.datetime.strptime(content['updated_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S'))
 
         if content['milestone']:
             self.milestone = content['milestone']['number']

@@ -3,6 +3,7 @@ import datetime
 import json
 import logging
 import os
+import pytz
 import requests
 import sys
 
@@ -306,6 +307,7 @@ class ZenHubIssue(Issue):
 
         response = requests.get(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/events',
                                 headers=self.repo.headers)
+        default_tz = pytz.timezone('UTC')
         if response.status_code == 200:
             content = response.json()
         else:
@@ -313,7 +315,7 @@ class ZenHubIssue(Issue):
 
         if content:
             # Get the first, most recent event in the list. Get its timestamp and convert to a datetime object,
-            # ignoring the milliseconds and Z after the period and adjusting 7 hours back for the time zone
-            return datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S') - datetime.timedelta(hours=7)
+            # ignoring the milliseconds and Z after the period and localizing to UTC time.
+            return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S'))
         else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
-            return datetime.datetime.min
+            return default_tz.localize(datetime.datetime.min)

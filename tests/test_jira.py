@@ -1,4 +1,5 @@
 import datetime
+import pytz
 import unittest
 from unittest.mock import patch
 
@@ -106,7 +107,7 @@ class TestJiraIssue(unittest.TestCase):
         self.assertEqual(self.j.status, 'Done')
         self.assertEqual(self.j.issue_type, 'Story')
         self.assertEqual(self.j.story_points, 7.0)
-        self.assertEqual(self.j.created, datetime.datetime(2019, 2, 5, 14, 52, 11))
+        self.assertEqual(self.j.created, pytz.timezone('America/Los_Angeles').localize(datetime.datetime(2019, 2, 5, 14, 52, 11)))
 
     @patch('src.jira.get_access_params')
     @patch('src.jira.requests.get', side_effect=mocked_response)
