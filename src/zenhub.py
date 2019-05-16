@@ -1,4 +1,6 @@
 #!/usr/env/python3
+
+
 import datetime
 import json
 import logging
@@ -17,6 +19,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -228,15 +232,17 @@ class ZenHubIssue(Issue):
             json_dict = {'pipeline_id': self.repo.pipeline_ids[self.pipeline], 'position': 'top'}
 
             response = requests.post(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/moves',
-                              headers=self.repo.headers, json=json_dict)
+                                     headers=self.repo.headers, json=json_dict)
 
             if response.status_code == 200:
                 logger.info(f'Success. {self.github_key} was moved to {self.pipeline}')
             else:
                 logger.debug(
-                    f'{response.status_code} error occurred when updating issue {self.github_key} pipeline: {response.text}')
+                    f'{response.status_code} error occurred when '
+                    f'updating issue {self.github_key} pipeline: {response.text}')
                 raise RuntimeError(
-                    f'{response.status_code} error occurred when updating issue {self.github_key} pipeline: {response.text}')
+                    f'{response.status_code} error occurred when '
+                    f'updating issue {self.github_key} pipeline: {response.text}')
         else:
             print("not a valid pipeline")
             logger.debug(f'{self.pipeline} is not a valid pipeline.')
@@ -316,6 +322,7 @@ class ZenHubIssue(Issue):
         if content:
             # Get the first, most recent event in the list. Get its timestamp and convert to a datetime object,
             # ignoring the milliseconds and Z after the period and localizing to UTC time.
-            return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S'))
+            return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0],
+                                                                  '%Y-%m-%dT%H:%M:%S'))
         else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
             return default_tz.localize(datetime.datetime.min)
