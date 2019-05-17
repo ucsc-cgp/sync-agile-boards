@@ -42,14 +42,50 @@ This should return the following output:
 }
 ```
 
-## Demo
+## Command Line Interface
+The command line interface found in `sync_agile_boards.py` may be used in either of two ways. You may either sync one repo at a 
+time by entering repo information and options in the command line, or you may enter a config file containing information
+to sync one or more repos.
 
-From the `src` directory, execute
+### Sync one repo in the command line
+This mode is indicated using the positional argument `with`. For example:
 
+```bash
+python sync_agile_boards.py with ucsc-cgl/TEST ucsc-cgp/sync-test -j
 ```
-python demo.py
+After `with` there are two required arguments that say where to find the repos to sync. This is in the format
+`<jira-organization>/<jira-repo-name> <zenhub-organization>/<zenhub-repo-name>`. Note that ZenHub may have additional
+names for boards etc., but you should use the name that is shared between ZenHub and GitHub. The third argument is a
+flag that says what the direction of synchronization is:
+
+| Flag | Description |
+| ---- | ----------- |
+| -j   | Use the Jira repo as the source. Make all ZenHub issues look like they do in Jira.|
+| -z   | Use the ZenHub repo as the source. Make all Jira issues look like they do in ZenHub.|
+| -m   | Use the most current issue as the source. For each issue, sync based on updated timestamp.|
+
+### Sync one or more repos from a config file
+This mode is indicated using the positional argument `in`. For example:
+
+```bash
+python sync_agile_boards.py in config.json
 ```
-to sync a repo.
+will iterate over the sync commands listed in `config.json` and run them in order as if they were done in the command 
+line sequentially.
+
+#### Config file format
+The config file must be in JSON format. It must consist of a dictionary with a top-level key named `sync_configs`. 
+The value of `sync_configs` must be a list of strings that represent command line arguments. For example:
+
+```json
+{
+  "sync_configs": [
+    "your-jira-org/your-jira-repo your-zenhub-org/your-zenhub-repo -j",
+    "another-jira-org/another-jira-repo another-zenhub-org/another-zenhub-repo -z"
+  ]
+}
+```
+Each string is formatted exactly as if you entered it in the command line as described above.
 
 ## Tests
 
