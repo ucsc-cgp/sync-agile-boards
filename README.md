@@ -48,12 +48,12 @@ time by entering repo information and options in the command line, or you may en
 to sync one or more repos.
 
 ### Sync one pair of repos in the command line
-This mode is indicated using the positional argument `with`. For example:
+This mode is indicated using the positional argument `repo`. For example:
 
 ```bash
-python sync_agile_boards.py with ucsc-cgl/TEST ucsc-cgp/sync-test -j
+python sync_agile_boards.py repo ucsc-cgl/TEST ucsc-cgp/sync-test -j
 ```
-After `with` there are two required arguments that say where to find the repos to sync. This is in the format
+After `repo` there are two required arguments that say where to find the repos to sync. This is in the format
 `<jira-organization>/<jira-repo-name> <zenhub-organization>/<zenhub-repo-name>`. Note that ZenHub may have additional
 names for boards etc., but you should use the name that is shared between ZenHub and GitHub. The third argument is a
 flag that says what the direction of synchronization is. Exactly one of these three flags is required:
@@ -93,10 +93,10 @@ which has autocomplete and help with syntax. You can then copy and paste into th
 
 
 ### Sync one or more repo pairs from a config file
-This mode is indicated using the positional argument `in`. For example:
+This mode is indicated using the positional argument `file`. For example:
 
 ```bash
-python sync_agile_boards.py in config.json
+python sync_agile_boards.py file config.json
 ```
 will iterate over the sync commands listed in `config.json` and run them in order as if they were done in the command 
 line sequentially.

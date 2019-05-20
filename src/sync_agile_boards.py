@@ -6,7 +6,6 @@ from src.sync import Sync
 from src.zenhub import ZenHubIssue, ZenHubRepo
 
 # TODO more options that would be nice to have:
-#    - should only have to enter this list for one management system, the list of matching tickets should be automatically identified
 #    - should automatically add in epic children to the sync list if they are not given
 
 
@@ -14,12 +13,12 @@ def main():
     parser = argparse.ArgumentParser()  # Make an argument parser with subparsers
     subparsers = parser.add_subparsers()
 
-    # If the first argument is 'in', the next and only other argument should be a config file
+    # If the first argument is 'file', the next and only other argument should be a config file
     file_parser = subparsers.add_parser('file', help='use a config file to run sync commands for one or more repos')
     file_parser.add_argument('config_file', help='specify path to a JSON config file. see README for details')
 
-    # Alternatively if the first arg is 'with', there are more options
-    no_file_parser = subparsers.add_parser('with', help='specify one repo to sync in the command line')
+    # Alternatively if the first arg is 'repo', there are more options
+    no_file_parser = subparsers.add_parser('repo', help='specify one repo to sync in the command line')
 
     # In this subparser a Jira repo and ZenHub repo must be specified
     no_file_parser.add_argument('jira', help='Jira organization and repo to sync separated by a forward slash')
@@ -39,7 +38,7 @@ def main():
 
     args = parser.parse_args()  # Get the arguments that were entered
 
-    if 'in' in args:  # Use a config file and parse each command in the list as if it were entered in the command line
+    if 'file' in args:  # Use a config file and parse each command in the list as if it were entered in the command line
         with open(args.config_file, 'r') as f:
             config = json.loads(f)
             for command in config['sync_configs']:  # A list of strings
@@ -72,14 +71,12 @@ def run_synchronization(args):
         jira = JiraRepo(repo_name=jira_repo, jira_org=jira_org)
         zenhub = ZenHubRepo(repo_name=zenhub_repo, org=zenhub_org, open_only=args.open_only)
 
-    print(jira.issues)
-    print(zenhub.issues)
-    # if args.j:
-    #     Sync.sync_board(source=jira, sink=zenhub)
-    # elif args.z:
-    #     Sync.sync_board(source=zenhub, sink=jira)
-    # else:
-    #     pass  # replace with mirror sync when other pr is merged
+    if args.j:
+        Sync.sync_board(source=jira, sink=zenhub)
+    elif args.z:
+        Sync.sync_board(source=zenhub, sink=jira)
+    else:
+        pass  # replace with mirror sync when other pr is merged
 
 
 if __name__ == '__main__':
