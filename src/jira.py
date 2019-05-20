@@ -92,14 +92,17 @@ class JiraIssue(Issue):
 
         if content['fields']['assignee']:
             self.assignees = [content['fields']['assignee']['name']]
-        self.created = datetime.datetime.strptime(content['fields']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
         self.description = content['fields']['description']
         self.issue_type = content['fields']['issuetype']['name']
         self.jira_key = content['key']
         self.status = content['fields']['status']['name']
 
         self.summary = content['fields']['summary']
-        self.updated = datetime.datetime.strptime(content['fields']['updated'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
+
+        # Convert the timestamps into datetime objects and localize them to PST time
+        self.updated = datetime.datetime.strptime(content['fields']['updated'].split('.')[0],
+                                                  '%Y-%m-%dT%H:%M:%S').replace(
+            tzinfo=JiraIssue.get_utc_offset(content['fields']['updated']))
 
         # Not all issue descriptions have the corresponding github issue listed in them
         self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)
@@ -119,6 +122,15 @@ class JiraIssue(Issue):
                     print('No sprint name was found in the sprint field')
 
         self.pipeline = get_zenhub_pipeline(self)  # This must be done after sprint status is set
+
+    @staticmethod
+    def get_utc_offset(timestamp):
+        """Return a timezone object representing the UTC offset found in the timestamp"""
+        offset_direction = timestamp[-5]  # A plus or minus sign
+        offset_hours = int(timestamp[-4:-2])
+        offset_minutes = int(timestamp[-2:])
+        offset_seconds = offset_hours * 3600 + offset_minutes * 60
+        return datetime.timezone(datetime.timedelta(seconds=int(offset_direction + str(offset_seconds))))
 
     def get_github_equivalent(self):
         """Find the equivalent Github issue key and repo name if listed in the issue text. Issues synced by unito-bot
@@ -206,3 +218,5 @@ class JiraIssue(Issue):
         else:
             print(f'{r.status_code} Error getting Jira epic children: {r.text}')
 
+if __name__ == '__main__':
+    j = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-3'])

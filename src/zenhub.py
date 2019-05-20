@@ -1,15 +1,16 @@
 #!/usr/env/python3
+import datetime
+import json
+import logging
+import os
+import pytz
+import requests
+import sys
 
 from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.github import GitHubRepo, GitHubIssue
 from src.utilities import get_repo_id, get_jira_status
-
-import json
-import logging
-import os
-import requests
-import sys
 
 sys.path.append('.')
 logger = logging.getLogger()
@@ -17,7 +18,6 @@ logger.setLevel(logging.INFO)
 FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
-import pprint
 
 def main():
     org_name = sys.argv[1]
@@ -120,7 +120,7 @@ class ZenHubRepo(Repo):
         # ZenHub API endpoint for repo issues only lists open ones, so I'm using the GitHub API to get all issues
         g = GitHubRepo(repo=self.name, org=self.org)
         for key, issue in g.issues.items():
-            self.issues[key] = ZenHubIssue(repo=self)
+            self.issues[key] = ZenHubIssue(key=key, repo=self)
 
     def _get_pipeline_ids(self):
         # Determine the valid pipeline IDs for this repo.
@@ -181,6 +181,10 @@ class ZenHubIssue(Issue):
 
         # Fill in the missing information for this issue that's in GitHub but not ZenHub
         self.update_from(self.github_equivalent)
+
+        # Get the most current update timestamp for this issue, whether in GitHub or ZenHub
+        # Changes to pipeline and estimate are not reflected in GitHub, so ZenHub events must be checked
+        self.updated = max(self.github_equivalent.updated, self.get_most_recent_event())
 
         self.status = get_jira_status(self)
 
@@ -298,3 +302,20 @@ class ZenHubIssue(Issue):
 
         if response.status_code != 200:
             raise ValueError(f'{response.status_code} Error: {response.text}')
+
+    def get_most_recent_event(self) -> datetime:
+
+        response = requests.get(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/events',
+                                headers=self.repo.headers)
+        default_tz = pytz.timezone('UTC')
+        if response.status_code == 200:
+            content = response.json()
+        else:
+            raise ValueError(f'{response.status_code} error when getting issue {self.github_key} events')
+
+        if content:
+            # Get the first, most recent event in the list. Get its timestamp and convert to a datetime object,
+            # ignoring the milliseconds and Z after the period and localizing to UTC time.
+            return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S'))
+        else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
+            return default_tz.localize(datetime.datetime.min)
