@@ -11,12 +11,12 @@ from src.utilities import CrypticNames, get_zenhub_pipeline
 
 class JiraRepo(Repo):
 
-    def __init__(self, repo_name, jira_org, issues: list = None):
+    def __init__(self, repo_name, jira_org, jql: str = None):
         """Create a Project storing all issues belonging to the provided project key
         :param repo_name: Required. The repo to work with e.g. TEST
         :param jira_org: Required. The organization the repo belongs to, e.g. ucsc-cgl
-        :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
-        retrieve and update the listed issues.
+        :param jql: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
+        retrieve issues that match this Jira Query Language filter.
         """
 
         super().__init__()
@@ -25,40 +25,36 @@ class JiraRepo(Repo):
 
         self.name = repo_name
         self.org = jira_org
-        self.issues = dict()
 
-        if issues:
-            for issue in issues:
-                self.issues[issue] = JiraIssue(key=issue, repo=self)
+        self.api_call(jql=jql)  # Get information for all issues in the project, filtered by jql if there is one
 
-        else:  # By default, get all issues
-            self.api_call()  # Get information for all issues in the project
-
-        # self.github_org, self.github_repo = board_map[jira_org][repo]
-
-    def api_call(self, start=0, updated_since: datetime = None):
+    def api_call(self, start=0, jql: str = None):
         """
         Make API calls until all results have been retrieved. Jira API responses can be paginated, defaulting to 50
         results per page, so a new call has to be made until the total is reached.
 
         :param start: The index in the results to start at. Always call this function with start=0
-        :param updated_since: If specified, get just the issues that have been updated since the time given in this
-        datetime object. Otherwise, get all issues in the repo.
+        :param jql: If specified, use this Jira query string to filter for certain issues within the repo
         """
 
-        if updated_since:  # format the timestamp to use in a Jira query
-            timestamp_filter = f" AND updated>='{updated_since.strftime('%Y-%m-%d %H:%M')}'"
+        if jql:  # Add an 'AND' before the filter so it can be combined with the project filter
+            jql_filter = f' AND {jql}'
         else:
-            timestamp_filter = ''  # otherwise do not filter by timestamp
+            jql_filter = ''  # otherwise do not filter
 
-        response = requests.get(f'{self.url}search?jql=project={self.name}{timestamp_filter}&startAt={str(start)}',
+        print(f'{self.url}search?jql=project={self.name}{jql_filter}&startAt={str(start)}')
+
+        response = requests.get(f'{self.url}search?jql=project={self.name}{jql_filter}&startAt={str(start)}',
                                 headers=self.headers).json()
 
-        for issue in response['issues']:
-            self.issues[issue['key']] = JiraIssue(content=issue, repo=self)
+        if 'issues' in response.keys():
+            for issue in response['issues']:
+                self.issues[issue['key']] = JiraIssue(content=issue, repo=self)
 
-        if response['total'] >= start + response['maxResults']:  # There could be another page of results
-            self.api_call(start=start + response['maxResults'], updated_since=updated_since)
+            if response['total'] >= start + response['maxResults']:  # There could be another page of results
+                self.api_call(start=start + response['maxResults'], jql=jql)
+        else:
+            print(f'No issues found matching this Jira query: {jql}')
 
 
 class JiraIssue(Issue):
@@ -78,6 +74,7 @@ class JiraIssue(Issue):
         self.repo = repo
 
         if key:
+            print(f'{self.repo.url}search?jql=id={key}')
             response = requests.get(f'{self.repo.url}search?jql=id={key}', headers=self.repo.headers)
 
             if response.status_code == 200:
@@ -218,5 +215,8 @@ class JiraIssue(Issue):
         else:
             print(f'{r.status_code} Error getting Jira epic children: {r.text}')
 
+
 if __name__ == '__main__':
-    j = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-3'])
+    j = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', jql='issuekey in ()')
+    print(j.issues)
+

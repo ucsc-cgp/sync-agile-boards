@@ -75,7 +75,7 @@ class Repo:
     def __init__(self):
         self.name = None
         self.org = None
-        self.issues = None
+        self.issues = dict()
         self.url = None
         self.headers = None
         self.id = None

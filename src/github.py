@@ -17,7 +17,6 @@ class GitHubRepo(Repo):
 
         self.github_repo = repo
         self.github_org = org
-        self.issues = dict()
         self.api_call()
 
     def api_call(self, start=1, updated_since: datetime = None):
@@ -99,7 +98,7 @@ class GitHubIssue(Issue):
         """Find the equivalent Jira issue key if it is listed in the issue text. Issues synced by unito-bot will have
         this information."""
 
-        match_obj = re.search(r'Issue Number: (.*)', self.description)  # search for the key in the issue description
+        match_obj = re.search(r'Issue Number: (\S*)', self.description)  # search for the key in the issue description
         if match_obj:
             return match_obj.group(1)
         else:

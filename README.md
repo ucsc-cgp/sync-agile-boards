@@ -47,7 +47,7 @@ The command line interface found in `sync_agile_boards.py` may be used in either
 time by entering repo information and options in the command line, or you may enter a config file containing information
 to sync one or more repos.
 
-### Sync one repo in the command line
+### Sync one pair of repos in the command line
 This mode is indicated using the positional argument `with`. For example:
 
 ```bash
@@ -56,7 +56,7 @@ python sync_agile_boards.py with ucsc-cgl/TEST ucsc-cgp/sync-test -j
 After `with` there are two required arguments that say where to find the repos to sync. This is in the format
 `<jira-organization>/<jira-repo-name> <zenhub-organization>/<zenhub-repo-name>`. Note that ZenHub may have additional
 names for boards etc., but you should use the name that is shared between ZenHub and GitHub. The third argument is a
-flag that says what the direction of synchronization is:
+flag that says what the direction of synchronization is. Exactly one of these three flags is required:
 
 | Flag | Description |
 | ---- | ----------- |
@@ -64,7 +64,35 @@ flag that says what the direction of synchronization is:
 | -z   | Use the ZenHub repo as the source. Make all Jira issues look like they do in ZenHub.|
 | -m   | Use the most current issue as the source. For each issue, sync based on updated timestamp.|
 
-### Sync one or more repos from a config file
+Next there is an optional filtering flag. This is helpful if you only want to sync certain issues in the repos.
+`--open_only` may be especially helpful to reduce execution time if your closed issues are rarely updated or not important.  
+Use up to one of the three options below:
+
+| Flag | Description |
+| ---- | ----------- |
+| -o, --open_only | Only retrieve and synchronize issues that are open in ZenHub. This flag takes no argument.|
+| -zi, --zenhub_issues | Only retrieve and synchronize this list of ZenHub issues e.g. '1, 3, 5'|
+| -jql, --jira-query-language | Only retrieve and synchronize issues that match this Jira query|
+
+#### Jira Query Language
+Jira uses the same syntax, called Jira Query Language (JQL), for advanced searching in the UI and for API requests. 
+The repo name you enter in the command line is formatted as a JQL query and appended to the request URL. Using the optional
+-jql flag, you can add additional filters, like assignee, or updated timestamp, to the request URL and only synchronize 
+tickets that match. For example:
+```bash
+$ python sync_agile_boards.py test-org/TEST zen/zen-repo -z -jql assignee=you
+```
+will make a request using the URL `https://test-org.atlassian.net/rest/api/latest/search?jql=project=TEST AND assignee=you`
+that will return all issues in the TEST repo that are assigned to 'you'. Jira queries may contain spaces separating
+keywords like `AND` and `OR`. If your query that you enter after `-jql` contains spaces, it must be enclosed in double quotes.
+Any quotes used withing the query must then be single quotes. If your query does not contain spaces, it must not be enclosed in quotes.
+
+The complete documentation for Jira Query Language is here: https://confluence.atlassian.com/jirasoftwarecloud/advanced-searching-764478330.html
+If you have difficulty getting a query to work, it is helpful to first make a query in the advanced search page in the UI,
+which has autocomplete and help with syntax. You can then copy and paste into the command line.
+
+
+### Sync one or more repo pairs from a config file
 This mode is indicated using the positional argument `in`. For example:
 
 ```bash

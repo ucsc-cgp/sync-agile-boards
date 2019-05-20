@@ -18,7 +18,7 @@ def mocked_response(*args, **kwargs):
             return self.json_data
 
     # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
-    if args == ('https://mock-org.atlassian.net/search?jql=id=ISSUE-WITH-BLANKS',):
+    if args == ('https://mock-org.atlassian.net/search?jql=project=TEST AND issuekey=ISSUE-WITH-BLANKS&startAt=0',):
         return MockResponse(
         {'issues':  # A condensed API response for an issue
             [{'fields': {
@@ -33,7 +33,9 @@ def mocked_response(*args, **kwargs):
                 'summary': 'Test 3',
                 'updated': '2019-02-20T14:34:08.870-0800'},
             'id': '15546',
-            'key': 'ISSUE-WITH-BLANKS'}]})
+            'key': 'ISSUE-WITH-BLANKS'}],
+          'total': 1,
+          'maxResults': 50})
 
     elif args == ('https://mock-org.atlassian.net/search?jql=id=NONEXISTENT-ISSUE',):
         return MockResponse(
@@ -101,7 +103,7 @@ class TestJiraIssue(unittest.TestCase):
         cls.k = cls.board.issues['REAL-ISSUE-2']
 
         # Initialize a board by specifying one issue of interest
-        cls.another_board = JiraRepo(repo_name='TEST', jira_org='org', issues=['ISSUE-WITH-BLANKS'])
+        cls.another_board = JiraRepo(repo_name='TEST', jira_org='org', jql='issuekey=ISSUE-WITH-BLANKS')
         cls.l = cls.another_board.issues['ISSUE-WITH-BLANKS']
 
     def test_happy_init(self):

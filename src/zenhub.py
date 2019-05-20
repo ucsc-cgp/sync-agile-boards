@@ -89,11 +89,12 @@ class ZenHub:
 
 class ZenHubRepo(Repo):
 
-    def __init__(self, repo_name: str = None, org: str = None, issues: list = None):
+    def __init__(self, repo_name: str = None, org: str = None, issues: list = None, open_only: bool = False):
         """Create a ZenHub board object.
         :param repo_name: Required. The name of the repo e.g. test-sync.
         :param org: Required. The name of the organization to which the repo belongs e.g. ucsc-cgp
         :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only retrieve
+        :param open_only:
         and update the listed issues.
         """
 
@@ -105,22 +106,35 @@ class ZenHubRepo(Repo):
         self.name = repo_name
         self.org = org
         self.id = str(get_repo_id(repo_name, org)['repo_id'])
-        self.issues = dict()
         self.pipeline_ids = self._get_pipeline_ids()
-        # self.jira_org = board_map[org][repo]
 
-        if issues:
+        if issues is not None:
             for i in issues:
                 self.issues[i] = ZenHubIssue(repo=self, key=i)
                 self.issues[i].repo = self  # Store a reference to the board object
+        elif open_only:
+            self.get_open_issues()  # Only get issues that are open
         else:
             self.get_all_issues()  # By default, get all issues in the repo
 
     def get_all_issues(self):
-        # ZenHub API endpoint for repo issues only lists open ones, so I'm using the GitHub API to get all issues
+        """Retrieve all issues, open or closed"""
+        # ZenHub's API will only return open issues when asked to show all issues in a repo
+        # But it can return information about closed issues when queried with their key
+        # GitHub's API will return all issues in a repo, open or closed
+        # So GitHub is used here to get a list of all issues. Then the ZenHub API is asked about each one individually.
         g = GitHubRepo(repo=self.name, org=self.org)
         for key, issue in g.issues.items():
             self.issues[key] = ZenHubIssue(key=key, repo=self)
+
+    def get_open_issues(self):
+        """Retrieve all open issues in this repo thru the ZenHub API"""
+        response = requests.get(f'{self.url}{self.id}/board', headers=self.headers)
+        content = response.json()
+        for pipeline in content['pipelines']:
+            for issue in pipeline['issues']:
+                self.issues[issue['issue_number']] = ZenHubIssue(repo=self, content=issue)
+                self.issues[issue['issue_number']].pipeline = pipeline
 
     def _get_pipeline_ids(self):
         # Determine the valid pipeline IDs for this repo.
@@ -319,3 +333,9 @@ class ZenHubIssue(Issue):
             return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S'))
         else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
             return default_tz.localize(datetime.datetime.min)
+
+if __name__ == '__main__':
+    z = ZenHubRepo(org='ucsc-cgp', repo_name='sync-test')
+    print(z.issues)
+    z = ZenHubRepo(org='ucsc-cgp', repo_name='sync-test', open_only=True)
+    print(z.issues)

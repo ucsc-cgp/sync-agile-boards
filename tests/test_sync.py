@@ -65,10 +65,11 @@ def mock_response(url, *args, **kwargs):
                                            {'id': '500', 'name': 'Epics'},
                                            {'id': '600', 'name': 'Review/QA'},
                                            {'id': '700', 'name': 'Done'}]})
+
     # Mock Jira issue information
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-1':
-        return MockResponse({'issues': [{
-            'fields': {
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=project=TEST&startAt=0':
+        return MockResponse({'issues': [
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -79,11 +80,8 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'In Progress'},
                 'summary': 'a test',
                 'updated': '2019-05-11T14:34:08.870-0800'},
-            'key': 'TEST-1'}]})
-
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-2':
-        return MockResponse({'issues': [{
-            'fields': {
+             'key': 'TEST-1'},
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -94,11 +92,8 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'In Review'},
                 'summary': 'Test 2',
                 'updated': '2019-04-21T15:55:08.870-0800'},
-            'key': 'TEST-2'}]})
-
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-3':
-        return MockResponse({'issues': [{
-            'fields': {
+             'key': 'TEST-2'},
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -109,11 +104,8 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'Done'},
                 'summary': 'Test 3',
                 'updated': '2019-02-20T14:34:08.870-0800'},
-            'key': 'TEST-3'}]})
-
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-4':
-        return MockResponse({'issues': [{
-            'fields': {
+             'key': 'TEST-3'},
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -124,7 +116,9 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'In Progress'},
                 'summary': 'Test 4',
                 'updated': '2019-02-20T14:34:08.870-0800'},
-            'key': 'TEST-4'}]})
+             'key': 'TEST-4'}],
+        'total': 4,
+        'maxResults': 50})
 
     # Get Jira epic children
     elif "https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=cf[10008]='TEST-2'" in url:
@@ -181,7 +175,7 @@ class TestSync(unittest.TestCase):
         self.ZENHUB_REPO = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['1', '2', '3', '4'])
         self.ZENHUB_ISSUE_1 = self.ZENHUB_REPO.issues['1']
 
-        self.JIRA_REPO = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-1', 'TEST-2', 'TEST-3', 'TEST-4'])
+        self.JIRA_REPO = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl')
         self.JIRA_ISSUE_1 = self.JIRA_REPO.issues['TEST-1']
 
     @patch('src.jira.JiraIssue.change_epic_membership')
@@ -192,8 +186,8 @@ class TestSync(unittest.TestCase):
     def test_sync_epics(self, jira_children, zen_children, repo_id, change_zen_epic, change_jira_epic):
         """Test the sync_epics method in isolation"""
 
-        j_epic = JiraIssue(repo=self.JIRA_REPO, key='TEST-2')
-        z_epic = ZenHubIssue(repo=self.ZENHUB_REPO, key='2')
+        j_epic = self.JIRA_REPO.issues['TEST-2']
+        z_epic = self.ZENHUB_REPO.issues['2']
 
         Sync.sync_epics(j_epic, z_epic)  # test syncing from Jira to ZenHub
         self.assertEqual(change_zen_epic.call_args_list, [call(add='1'), call(remove='4')])
