@@ -137,12 +137,3 @@ class TestJiraIssue(unittest.TestCase):
         # self.assertEqual(self.k.assignees, ['aaaaa'])
         self.assertEqual(self.k.story_points, 7.0)
         self.assertEqual(self.k.status, 'Done')
-
-    def test_fill_in_blanks_from(self):
-        self.l.fill_in_blanks_from(self.j)
-        self.assertEqual(self.l.status, 'In Progress')
-        self.assertEqual(self.l.assignees, ['aaaaa'])
-        self.assertEqual(self.l.story_points, 7.0)
-
-
-
