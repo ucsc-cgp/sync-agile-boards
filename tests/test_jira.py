@@ -1,4 +1,5 @@
 import datetime
+import pytz
 import unittest
 from unittest.mock import patch
 
@@ -88,25 +89,27 @@ def mocked_response(*args, **kwargs):
 
 class TestJiraIssue(unittest.TestCase):
 
+    @classmethod
     @patch('src.jira.get_access_params')
     @patch('src.jira.requests.get', side_effect=mocked_response)
-    def setUp(self, get_mocked_response, get_mocked_token):
+    def setUpClass(cls, get_mocked_response, get_mocked_token):
         get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
 
         # Initialize a board with all its issues
-        self.board = JiraRepo(repo_name='TEST', jira_org='org')
-        self.j = self.board.issues['REAL-ISSUE-1']
-        self.k = self.board.issues['REAL-ISSUE-2']
+        cls.board = JiraRepo(repo_name='TEST', jira_org='org')
+        cls.j = cls.board.issues['REAL-ISSUE-1']
+        cls.k = cls.board.issues['REAL-ISSUE-2']
 
         # Initialize a board by specifying one issue of interest
-        self.another_board = JiraRepo(repo_name='TEST', jira_org='org', issues=['ISSUE-WITH-BLANKS'])
-        self.l = self.another_board.issues['ISSUE-WITH-BLANKS']
+        cls.another_board = JiraRepo(repo_name='TEST', jira_org='org', issues=['ISSUE-WITH-BLANKS'])
+        cls.l = cls.another_board.issues['ISSUE-WITH-BLANKS']
 
     def test_happy_init(self):
         self.assertEqual(self.j.status, 'Done')
         self.assertEqual(self.j.issue_type, 'Story')
         self.assertEqual(self.j.story_points, 7.0)
-        self.assertEqual(self.j.created, datetime.datetime(2019, 2, 5, 14, 52, 11))
+        self.assertEqual(self.j.updated, datetime.datetime(2019, 2, 20, 14, 34, 8).replace(
+            tzinfo=datetime.timezone(datetime.timedelta(hours=-8))))
 
     @patch('src.jira.get_access_params')
     @patch('src.jira.requests.get', side_effect=mocked_response)
