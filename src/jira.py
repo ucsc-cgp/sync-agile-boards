@@ -142,28 +142,6 @@ class JiraIssue(Issue):
                 return match_obj.group(1), match_obj.group(2)
             print(self.jira_key, 'No match was found in the description.')
 
-    def dict_format(self) -> dict:
-        """Describe this issue in a dictionary that can be posted to Jira"""
-
-        d = {
-            'fields': {  # these fields can be updated
-                'description': self.description,
-                'issuetype': {'name': self.issue_type},
-                'summary': self.summary
-            }
-        }
-
-        if self.story_points:
-            d['fields']['customfield_10014'] = self.story_points
-
-        if self.assignees:
-            d['fields']['assignee'] = {'name': self.assignees[0]}
-
-        if self.jira_sprint:
-            d['fields']['customfield_10010'] = self.jira_sprint
-
-        return d
-
     def update_remote(self):
         """Update the remote issue. The issue must already exist in Jira."""
 
@@ -175,11 +153,13 @@ class JiraIssue(Issue):
         if r.status_code != 204:  # HTTP 204 No Content on success
             print(f'{r.status_code} Error transitioning')
 
-        # Issue assignee, description, summary, and story points fields can be updated from a dictionary
-        r = requests.put(f'{self.repo.url}issue/{self.jira_key}', headers=self.repo.headers, json=self.dict_format())
+        # Story points field can be updated from a dictionary
+        if self.story_points:  # Do not try to update this if there is no value for story points
+            r = requests.put(f'{self.repo.url}issue/{self.jira_key}', headers=self.repo.headers,
+                             json={'fields': {CrypticNames.story_points: self.story_points}})
 
-        if r.status_code != 204:  # HTTP 204 No Content on success
-            print(f'{r.status_code} Error updating Jira: {r.text}')
+            if r.status_code != 204:  # HTTP 204 No Content on success
+                print(f'{r.status_code} Error updating Jira: {r.text}')
 
     def post_new_issue(self):
         """Post this issue to Jira for the first time. The issue must not already exist."""

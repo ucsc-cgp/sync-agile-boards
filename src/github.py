@@ -106,15 +106,6 @@ class GitHubIssue(Issue):
             print(self.github_key, 'No jira key was found in the description.')
             return ''
 
-    def dict_format(self) -> dict:
-        dic = {
-            'title': self.summary,
-            'body': self.description,
-            'labels': []
-        }
-
-        return dic
-
     def post_new_issue(self):
         """Post this issue to GitHub for the first time. The issue should not already exist."""
 
@@ -124,12 +115,3 @@ class GitHubIssue(Issue):
             print(f'{response.status_code} Error posting to GitHub: {response.text}')
 
         self.github_key = response.json()['id']  # keep the key that GitHub assigned to this issue when creating it
-
-    def update_remote(self):
-        """Update this issue on GitHub. The issue must already exist."""
-
-        response = requests.patch(f'{self.url}{self.github_repo}/issues/{self.github_key}', headers=self.headers,
-                           json=self.dict_format())
-
-        if response.status_code != 200:
-            print(f'{response.status_code} Error updating GitHub: {response.text}')

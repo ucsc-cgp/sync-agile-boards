@@ -211,38 +211,26 @@ class TestSync(unittest.TestCase):
 
         Sync.sync_board(self.ZENHUB_REPO, self.JIRA_REPO)
 
-        # TEST-1 is updated
+        # TEST-1 is updated, no put request is made because story_points=None
         self.assertEqual(jira_post.call_args_list[0][1]['json'], {'transition': {'id': 61}})  # TEST-1 to new issue
-        self.assertEqual(jira_put.call_args_list[0][1]['json'], {'fields': {'description': 'Issue Number: TEST-1',
-                                                                            'issuetype': {'name': 'Story'},
-                                                                            'summary': 'a test'}})
+
         # TEST-2 is updated
         self.assertEqual(jira_post.call_args_list[1][1]['json'], {'transition': {'id': 21}})
-        self.assertEqual(jira_put.call_args_list[1][1]['json'], {'fields': {'description': 'Issue Number: TEST-2',
-                                                                            'issuetype': {'name': 'Epic'},
-                                                                            'summary':'Test 2',
-                                                                            'customfield_10014': 5}})
+        self.assertEqual(jira_put.call_args_list[0][1]['json'], {'fields': {'customfield_10014': 5}})
         # TEST-1 and TEST-3 are added to epic TEST-2
         self.assertEqual(jira_post.call_args_list[2][1]['json'], {'issues': ['TEST-1']})
         self.assertEqual(jira_post.call_args_list[3][1]['json'], {'issues': ['TEST-3']})
 
         # TEST-3 is updated to Story, causing TEST-2 and TEST-4 to no longer be its children
         self.assertEqual(jira_post.call_args_list[4][1]['json'], {'transition': {'id': 41}})
-        self.assertEqual(jira_put.call_args_list[2][1]['json'], {'fields': {'description': 'Issue Number: TEST-3',
-                                                                            'issuetype': {'name': 'Story'},
-                                                                            'summary': 'Test 3',
-                                                                            'customfield_10014': 2}})
+        self.assertEqual(jira_put.call_args_list[1][1]['json'], {'fields': {'customfield_10014': 2}})
         # TEST-4 is updated
         self.assertEqual(jira_post.call_args_list[5][1]['json'], {'transition': {'id': 21}})
-        self.assertEqual(jira_put.call_args_list[3][1]['json'], {'fields': {'description': 'Issue Number: TEST-4',
-                                                                            'issuetype': {'name': 'Story'},
-                                                                            'summary': 'Test 4',
-                                                                            'customfield_10014': 2}})
+        self.assertEqual(jira_put.call_args_list[2][1]['json'], {'fields': {'customfield_10014': 2}})
 
-    @patch('src.github.requests.patch', side_effect=mock_response)
     @patch('src.zenhub.requests.put', side_effect=mock_response)
     @patch('src.zenhub.requests.post', side_effect=mock_response)
-    def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put, github_patch):
+    def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put):
         """Test syncing a repo from Jira to ZenHub.
         Assert that API calls are made in the correct order with correct data."""
 
@@ -251,24 +239,17 @@ class TestSync(unittest.TestCase):
         # 1 is updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[0][1]['json'], {'pipeline_id': '200', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[0][1]['json'], {'estimate': 0})
-        self.assertEqual(github_patch.call_args_list[0][1]['json'], {'title': 'a test',
-                                                                     'body': 'synchronized with github: Repository Name: abc Issue Number: 1',
-                                                                     'labels': []})
 
         # 2 is converted to issue and updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[1][1]['json'], {'issues': [{'repo_id': '123', 'issue_number': '2'}]})
         self.assertEqual(zenhub_post.call_args_list[2][1]['json'], {'pipeline_id': '600', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[1][1]['json'], {'estimate': 2.0})
-        self.assertEqual(github_patch.call_args_list[1][1]['json'], {'title': 'Test 2',
-                                                                     'body': 'synchronized with github: Repository Name: abc Issue Number: 2',
-                                                                     'labels': []})
+
         # 3 is converted to epic and updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[3][1]['json'], {'issues': [{'repo_id': '123', 'issue_number': '3'}]})
         self.assertEqual(zenhub_post.call_args_list[4][1]['json'], {'pipeline_id': '700', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[2][1]['json'], {'estimate': 3.0})
-        self.assertEqual(github_patch.call_args_list[2][1]['json'], {'title': 'Test 3',
-                                                                     'body': 'synchronized with github: Repository Name: abc Issue Number: 3',
-                                                                     'labels': []})
+
         # 2 and 4 are added to epic 3 through ZenHub
         self.assertEqual(zenhub_post.call_args_list[5][1]['json'], {'add_issues': [{'repo_id': 123, 'issue_number': 2}]})
         self.assertEqual(zenhub_post.call_args_list[6][1]['json'], {'add_issues': [{'repo_id': 123, 'issue_number': 4}]})
@@ -276,9 +257,6 @@ class TestSync(unittest.TestCase):
         # 4 is updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[7][1]['json'], {'pipeline_id': '200', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[3][1]['json'], {'estimate': 4.0})
-        self.assertEqual(github_patch.call_args_list[3][1]['json'], {'title': 'Test 4',
-                                                                     'body': 'synchronized with github: Repository Name: abc Issue Number: 4',
-                                                                     'labels': []})
 
     @patch('src.sync.Sync.sync_from_specified_source')
     def test_mirror_sync(self, sync):

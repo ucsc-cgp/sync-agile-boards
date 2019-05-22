@@ -2,10 +2,7 @@
 class Issue:
 
     def __init__(self):
-
-        self.assignees = None  # list[str]
-        self.created = None  # datetime object
-
+        
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by ZenHub and github
         self.issue_type = None  # str, for Jira: Epic or Task or Story or Bug, for ZenHub: Epic or Issue
@@ -26,7 +23,6 @@ class Issue:
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
         """
-        # TODO sync assignees
 
         # Headers, url, and token are specific to the issue being in Jira or ZenHub.
         # Description and assignees are more complicated to sync.
