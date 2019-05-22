@@ -2,7 +2,7 @@
 class Issue:
 
     def __init__(self):
-        
+
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by ZenHub and github
         self.issue_type = None  # str, for Jira: Epic or Task or Story or Bug, for ZenHub: Epic or Issue
