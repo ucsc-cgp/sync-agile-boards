@@ -1,4 +1,5 @@
 import datetime
+import logging
 from more_itertools import first
 import re
 import requests
@@ -42,8 +43,6 @@ class JiraRepo(Repo):
         else:
             jql_filter = ''  # otherwise do not filter
 
-        print(f'{self.url}search?jql=project={self.name}{jql_filter}&startAt={str(start)}')
-
         response = requests.get(f'{self.url}search?jql=project={self.name}{jql_filter}&startAt={str(start)}',
                                 headers=self.headers).json()
 
@@ -74,7 +73,6 @@ class JiraIssue(Issue):
         self.repo = repo
 
         if key:
-            print(f'{self.repo.url}search?jql=id={key}')
             response = requests.get(f'{self.repo.url}search?jql=id={key}', headers=self.repo.headers)
 
             if response.status_code == 200:
@@ -137,7 +135,7 @@ class JiraIssue(Issue):
             match_obj = re.search(r'Repository Name: ([\w_-]*)[\s\S]*Issue Number: ([\w-]*)', self.description)
             if match_obj:
                 return match_obj.group(1), match_obj.group(2)
-            print(self.jira_key, 'No match was found in the description.')
+            logging.info(f'No GitHub link found in the description for issue {self.jira_key}.')
 
     def dict_format(self) -> dict:
         """Describe this issue in a dictionary that can be posted to Jira"""

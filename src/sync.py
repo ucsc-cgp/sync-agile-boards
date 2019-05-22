@@ -1,3 +1,4 @@
+import logging
 import time
 
 from src.jira import JiraRepo
@@ -14,27 +15,25 @@ class Sync:
 
         if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
             for key, issue in source.issues.items():
-                print(f'syncing {sink.issues[issue.jira_key]} from {key}')
+                logging.info(f'syncing {sink.issues[issue.jira_key]} from {key}')
                 Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
 
         elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
             for key, issue in source.issues.items():
-                print(f'syncing {sink.issues[issue.github_key]} from {key}')
+                logging.info(f'syncing {sink.issues[issue.github_key]} from {key}')
                 for i in range(3):  # Allow for 3 tries
                     try:
                         if issue.github_key:
-                            try:
-                                Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
-                            except KeyError as e:
-                                raise ValueError(f'Issue {issue.github_key} referenced from {issue.jira_key} not found in board')
+                            Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
                         else:
-                            print("skipping this issue")
+                            logging.warning(f'Issue {key} has no GitHub link information. Skipping this issue')
                         break
 
                     except RuntimeError as e:
-                        print(repr(e))
+                        logging.warning(repr(e) + f' (attempt {i}). Waiting 10 seconds before retrying...')
                         time.sleep(10)  # The API rate limit may have been reached
                         continue
+                logging.warning('All 3 attempts failed. Skipping this issue')
 
     @staticmethod
     def mirror_sync(jira_repo: 'JiraRepo', zenhub_repo: 'ZenHubRepo'):
@@ -44,9 +43,9 @@ class Sync:
 
     @staticmethod
     def sync_from_specified_source(source: 'Issue', destination: 'Issue'):
-
         # ZenHub issue types have to be changed through a separate request
         if destination.__class__.__name__ == 'ZenHubIssue':
+
             if source.issue_type == 'Epic' and destination.issue_type != 'Epic':
                 destination.promote_issue_to_epic()
             elif source.issue_type != 'Epic' and destination.issue_type == 'Epic':
@@ -62,10 +61,10 @@ class Sync:
     def sync_from_most_current(a: 'Issue', b: 'Issue'):
 
         if a.updated > b.updated:  # a is the most current
-            print(f'syncing {b} (updated at {b.updated}) from {a} (updated at {a.updated})')
+            logging.info(f'syncing {b} (updated at {b.updated}) from {a} (updated at {a.updated})')
             Sync.sync_from_specified_source(a, b)  # use a as the source
         else:
-            print(f'syncing {a} (updated at {a.updated}) from {b} (updated at {b.updated})')
+            logging.info(f'syncing {a} (updated at {a.updated}) from {b} (updated at {b.updated})')
             Sync.sync_from_specified_source(b, a)
 
     @staticmethod
@@ -76,7 +75,14 @@ class Sync:
         sink_children = sink.get_epic_children()
 
         for issue in source_children:  # It could have 0 children
-            source_child = source.repo.issues[str(issue)]  # Get the Issue object by its key
+
+            # If a subset of all issues is being synced, it's possible that epics in the subset have children that
+            # aren't in the subset. To avoid KeyErrors, check if each child issue is in the subset we already have
+            if issue in source.repo.issues:  # information for:
+                source_child = source.repo.issues[str(issue)]             # If so, get the Issue object by its key
+            else:
+                logging.info(f'')
+                source_child = type(source)(key=issue, repo=source.repo)  # If not, make a new Issue object for it
 
             if source_child.__class__.__name__ == 'ZenHubIssue':  # Get the key of the same issue in the opposite
                 twin_key = source_child.jira_key                  # management system

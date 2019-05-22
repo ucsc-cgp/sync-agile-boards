@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 
 from src.jira import JiraIssue, JiraRepo
 from src.sync import Sync
@@ -10,6 +11,8 @@ from src.zenhub import ZenHubIssue, ZenHubRepo
 
 
 def main():
+    logging.basicConfig(filename='sync_agile_boards.log', level=logging.INFO)
+
     parser = argparse.ArgumentParser()  # Make an argument parser with subparsers
     subparsers = parser.add_subparsers()
 
@@ -51,6 +54,7 @@ def main():
 def run_synchronization(args):
     """Run synchronization as specified in the given command line arguments"""
 
+    logging.info(f'Running synchronization with args {args}')
     jira_org, jira_repo = args.jira.split('/')
     zenhub_org, zenhub_repo = args.zenhub.split('/')
 

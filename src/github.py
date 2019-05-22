@@ -1,4 +1,5 @@
 import datetime
+import logging
 import pytz
 import re
 import requests
@@ -102,7 +103,7 @@ class GitHubIssue(Issue):
         if match_obj:
             return match_obj.group(1)
         else:
-            print(self.github_key, 'No jira key was found in the description.')
+            logging.info(f'No Jira key was found in the description of issue {self.github_key}')
             return ''
 
     def dict_format(self) -> dict:
