@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-import requests
 import os
 import errno
 import logging
+import requests
 
 from src.access import get_access_params
 from src.issue import Issue

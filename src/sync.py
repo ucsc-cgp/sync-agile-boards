@@ -13,9 +13,12 @@ class Sync:
     def sync_board(source: 'Board', sink: 'Board'):
 
         if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
-            for key, issue in source.issues.items():
-                print(f'syncing {sink.issues[issue.jira_key]} from {key}')
-                Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
+            for issue in source.issues.values():
+                try:
+                    Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
+                except KeyError as e:
+                    print(e)
+                    print(f'Skipping issue {issue.github_key}: {issue.jira_key} not found in Jira board')
 
         elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
             for key, issue in source.issues.items():
@@ -31,9 +34,9 @@ class Sync:
                             print("skipping this issue")
                         break
 
-                    except RuntimeError as e:
+                    except RuntimeError as e:  # The API rate limit may have been reached
                         print(repr(e))
-                        time.sleep(10)  # The API rate limit may have been reached
+                        time.sleep(10)  # Try again in 10 seconds, hopefully the API limit will have reset
                         continue
 
     @staticmethod

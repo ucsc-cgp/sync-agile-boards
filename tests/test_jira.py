@@ -45,7 +45,7 @@ def mocked_response(*args, **kwargs):
 
     elif args == ('https://mock-org.atlassian.net/search?jql=project=TEST&startAt=0',):
         return MockResponse(
-            {'total': 1,
+            {'total': 2,
              'maxResults': 50,
              'issues':  # A condensed API response for all issues in a board
                 [{'fields': {
@@ -99,6 +99,7 @@ class TestJiraIssue(unittest.TestCase):
 
         # Initialize a board with all its issues
         cls.board = JiraRepo(repo_name='TEST', jira_org='org')
+        print(cls.board.issues)
         cls.j = cls.board.issues['REAL-ISSUE-1']
         cls.k = cls.board.issues['REAL-ISSUE-2']
 
@@ -144,9 +145,3 @@ class TestJiraIssue(unittest.TestCase):
         # self.assertEqual(self.k.assignees, ['aaaaa'])
         self.assertEqual(self.k.story_points, 7.0)
         self.assertEqual(self.k.status, 'Done')
-
-    def test_fill_in_blanks_from(self):
-        self.l.fill_in_blanks_from(self.j)
-        self.assertEqual(self.l.status, 'In Progress')
-        self.assertEqual(self.l.assignees, ['aaaaa'])
-        self.assertEqual(self.l.story_points, 7.0)

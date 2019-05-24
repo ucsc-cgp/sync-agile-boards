@@ -1,10 +1,11 @@
 #!/usr/env/python3
 
-import datetime
 import pytz
+import datetime
 import re
 import unittest
 from unittest.mock import patch
+
 from src.zenhub import ZenHubRepo
 
 
@@ -22,8 +23,7 @@ def mocked_response(*args, **kwargs):
 
     # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
     # Happy Path:
-    if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',):
         return MockResponse(
             {'estimate': {'value': 2},
              'plus_ones': [],
@@ -34,8 +34,7 @@ def mocked_response(*args, **kwargs):
         )
 
     # Issue events
-    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42/events',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42/events',):
         return MockResponse(
             [{'created_at': '2019-05-08T22:13:43.512Z',
               'from_estimate': {'value': 8},
@@ -50,16 +49,14 @@ def mocked_response(*args, **kwargs):
         )
 
     # Non-existent issue number:
-    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/55555555',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/55555555',):
         return MockResponse(
             {'message': 'Issue not found'},
             404,
             'Not Found'
         )
     # Non-existent repo number
-    elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',):
         return MockResponse(
             {'message': 'Invalid Field for repo_id: repo_id is a required field'},
             422,
@@ -88,7 +85,7 @@ def mocked_response(*args, **kwargs):
 class TestZenHub(unittest.TestCase):
 
     def setUp(self):
-        self.patch_repo_id = patch('src.zenhub.get_repo_id', return_value={'repo_id': '123456789'})
+        self.patch_repo_id = patch('src.zenhub.ZenHubRepo.get_repo_id', return_value='123456789')
         self.patch_requests = patch('requests.get', side_effect=mocked_response)
         self.patch_token = patch('src.access._get_token', return_value='99999999')
         for p in [self.patch_repo_id, self.patch_requests, self.patch_token]:
@@ -97,6 +94,11 @@ class TestZenHub(unittest.TestCase):
 
         self.board = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['42'])
         self.zen = self.board.issues['42']
+
+    def test_happy_init(self):
+        self.assertEqual(self.zen.story_points, 2)
+        self.assertEqual(self.zen.pipeline, 'Review/QA')
+        self.assertEqual(self.zen.issue_type, 'Story')
 
     @patch('src.zenhub.requests.put')
     def test_update_issue_points(self, mock_put_request):
@@ -111,7 +113,7 @@ class TestZenHub(unittest.TestCase):
         expected_dict.update({'json': {'estimate': 2}})
         self.assertIn(expected_dict, request_args)
 
-    @patch('src.zenhub.get_repo_id', return_value={'repo_id': 123456789, 'status_code': 200})
+    @patch('src.zenhub.ZenHubRepo.get_repo_id', return_value='123456789')
     @patch('os.path.join')
     @patch('requests.post')
     def test_update_issue_pipeline(self, mock_post_change_pipeline, mock_url_creator, mock_repo_id):
@@ -133,7 +135,7 @@ class TestZenHub(unittest.TestCase):
         expected_dict.update({'json': {'pipeline_id': 2, 'position': 'top'}})
         self.assertIn(expected_dict, request_args)
 
-    @patch('src.zenhub.get_repo_id', return_value={'repo_id': 123456789, 'status_code': 200})
+    @patch('src.zenhub.ZenHubRepo.get_repo_id', return_value='123456789')
     @patch('os.path.join')
     @patch('requests.post')
     def test_update_issue_to_epic(self, mock_requests_post, mock_url_creator, mock_repo_id):
