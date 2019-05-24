@@ -1,7 +1,7 @@
 import time
+import logging
 
-from src.jira import JiraRepo
-from src.zenhub import ZenHubRepo
+logger = logging.getLogger(__name__)
 
 
 class Sync:
@@ -91,3 +91,26 @@ class Sync:
 
         for issue in sink_children:              # any issues left in this list do not belong to the epic in source,
             sink.change_epic_membership(remove=issue)  # so they are removed from the epic in sink.
+
+    @staticmethod
+    def sync_sprints(source: 'Issue', sink: 'Issue'):
+
+        if source.__class__.__name__ == 'ZenHubIssue':
+            if source.github_milestone is None:
+                logger.info(f'Sync sprint: Issue {source.github_key} does not belong to any sprint')
+                return
+            elif sink.github_milestone == source.github_milestone:
+                logger.info(f'Sync sprint: Issue {sink.jira_key} is in sprint {source.github_milestone}')
+                return
+            else:
+                assert sink.__class__.__name__ == 'JiraIssue'
+                if sink.jira_sprint_id is None:
+                    sprint_title = source.github_milestone
+                    status_code = sink._get_sprint_id(sprint_title)
+                    if status_code == 200:
+                        logger.info(f'Sync sprint: Added issue {sink.jira_key} to sprint {sprint_title}')
+                        sink.add_to_sprint()
+                    else:
+                        logger.warning(
+                            f'Sync sprint: No Sprint ID found for {sink.jira_key} and sprint title {sprint_title}')
+                        return
