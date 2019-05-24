@@ -53,7 +53,7 @@ class JiraRepo(Repo):
             if response['total'] >= start + response['maxResults']:  # There could be another page of results
                 self.api_call(start=start + response['maxResults'], jql=jql)
         else:
-            print(f'No issues found matching this Jira query: {jql}')
+            logging.info(f'No issues found matching this Jira query: {jql}')
 
 
 class JiraIssue(Issue):
@@ -137,28 +137,6 @@ class JiraIssue(Issue):
                 return match_obj.group(1), match_obj.group(2)
             logging.info(f'No GitHub link found in the description for issue {self.jira_key}.')
 
-    def dict_format(self) -> dict:
-        """Describe this issue in a dictionary that can be posted to Jira"""
-
-        d = {
-            'fields': {  # these fields can be updated
-                'description': self.description,
-                'issuetype': {'name': self.issue_type},
-                'summary': self.summary
-            }
-        }
-
-        if self.story_points:
-            d['fields']['customfield_10014'] = self.story_points
-
-        if self.assignees:
-            d['fields']['assignee'] = {'name': self.assignees[0]}
-
-        if self.jira_sprint:
-            d['fields']['customfield_10010'] = self.jira_sprint
-
-        return d
-
     def update_remote(self):
         """Update the remote issue. The issue must already exist in Jira."""
 
@@ -168,13 +146,14 @@ class JiraIssue(Issue):
         r = requests.post(f'{self.repo.url}issue/{self.jira_key}/transitions', headers=self.repo.headers, json=transition)
 
         if r.status_code != 204:  # HTTP 204 No Content on success
-            print(f'{r.status_code} Error transitioning')
+            logging.warning(f'{r.status_code} Error transitioning Jira status')
 
-        # Issue assignee, description, summary, and story points fields can be updated from a dictionary
-        r = requests.put(f'{self.repo.url}issue/{self.jira_key}', headers=self.repo.headers, json=self.dict_format())
+        # story points fields can be updated from a dictionary
+        r = requests.put(f'{self.repo.url}issue/{self.jira_key}', headers=self.repo.headers,
+                         json={'fields': {'customfield_10014': self.story_points}})
 
         if r.status_code != 204:  # HTTP 204 No Content on success
-            print(f'{r.status_code} Error updating Jira: {r.text}')
+            logging.warning(f'{r.status_code} Error updating Jira: {r.text}')
 
     def post_new_issue(self):
         """Post this issue to Jira for the first time. The issue must not already exist."""

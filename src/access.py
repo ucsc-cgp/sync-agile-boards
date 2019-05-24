@@ -25,15 +25,15 @@ def get_access_params(mgmnt_sys):
     if mgmnt_sys in ['jira', 'atlassian']:
         options = {'server': url_mgmnt_sys['jira_url']}
         path_to_token = token_path['api_token_jira']
-        logging.info('Accessing Jira')
+        # logging.info('Accessing Jira')
     elif mgmnt_sys in ['zen', 'zenhub']:
         options = {'server': url_mgmnt_sys['zenhub_url']}
         path_to_token = token_path['api_token_zenhub']
-        logging.info('Accessing ZenHub')
+        # logging.info('Accessing ZenHub')
     elif mgmnt_sys in ['git', 'github']:
         options = {'server': urls['github_api']}
         path_to_token = token_path['api_token_github']
-        logging.info('Accessing GitHub')
+        # logging.info('Accessing GitHub')
     else:
         raise ValueError(f'{mgmnt_sys} not a valid input.')
 

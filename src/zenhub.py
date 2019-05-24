@@ -121,10 +121,12 @@ class ZenHubRepo(Repo):
         """Retrieve all open issues in this repo thru the ZenHub API"""
         response = requests.get(f'{self.url}{self.id}/board', headers=self.headers)
         content = response.json()
+
         for pipeline in content['pipelines']:
             for issue in pipeline['issues']:
+                issue['pipeline'] = {}
+                issue['pipeline']['name'] = pipeline['name']
                 self.issues[issue['issue_number']] = ZenHubIssue(repo=self, content=issue)
-                self.issues[issue['issue_number']].pipeline = pipeline
 
     def _get_pipeline_ids(self):
         # Determine the valid pipeline IDs for this repo.
@@ -194,10 +196,6 @@ class ZenHubIssue(Issue):
         # Points and pipeline can be updated thru ZenHub's API
         self._update_issue_points()
         self._update_issue_pipeline()
-
-        # Other fields like description and title have to be updated thru GitHub
-        self.github_equivalent.update_from(self)
-        self.github_equivalent.update_remote()
 
     def _update_issue_points(self):
         """Update the remote issue's points estimate to the value currently held by the Issue object"""

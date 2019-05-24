@@ -1,4 +1,5 @@
 import logging
+import shlex
 import time
 
 from src.jira import JiraRepo
@@ -15,25 +16,36 @@ class Sync:
 
         if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
             for key, issue in source.issues.items():
-                logging.info(f'syncing {sink.issues[issue.jira_key]} from {key}')
-                Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
+                try:
+                    if issue.jira_key:
+                        logging.info(f'syncing {issue.jira_key} from {key}')
+                        Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
+                    else:
+                        logging.warning(f'Issue {key} has no Jira link information. Skipping this issue')
+
+                except RuntimeError as e:
+                    logging.warning(repr(e) + f'Failed to sync issue {key}. Skipping this issue')
+
+                except KeyError as e:
+                    logging.warning(repr(e) + f'Skipping this issue - matching issue in Jira not found')
 
         elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
             for key, issue in source.issues.items():
-                logging.info(f'syncing {sink.issues[issue.github_key]} from {key}')
                 for i in range(3):  # Allow for 3 tries
                     try:
                         if issue.github_key:
+                            logging.info(f'syncing {issue.github_key} from {key}')
                             Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
                         else:
                             logging.warning(f'Issue {key} has no GitHub link information. Skipping this issue')
                         break
 
                     except RuntimeError as e:
-                        logging.warning(repr(e) + f' (attempt {i}). Waiting 10 seconds before retrying...')
+                        logging.warning(repr(e) + f' (attempt {i+1} of 3). Waiting 10 seconds before retrying...')
                         time.sleep(10)  # The API rate limit may have been reached
                         continue
-                logging.warning('All 3 attempts failed. Skipping this issue')
+                    except KeyError as e:
+                        logging.warning(repr(e) + f'Issue not found. Going to next issue')
 
     @staticmethod
     def mirror_sync(jira_repo: 'JiraRepo', zenhub_repo: 'ZenHubRepo'):
@@ -45,7 +57,6 @@ class Sync:
     def sync_from_specified_source(source: 'Issue', destination: 'Issue'):
         # ZenHub issue types have to be changed through a separate request
         if destination.__class__.__name__ == 'ZenHubIssue':
-
             if source.issue_type == 'Epic' and destination.issue_type != 'Epic':
                 destination.promote_issue_to_epic()
             elif source.issue_type != 'Epic' and destination.issue_type == 'Epic':
@@ -81,7 +92,7 @@ class Sync:
             if issue in source.repo.issues:  # information for:
                 source_child = source.repo.issues[str(issue)]             # If so, get the Issue object by its key
             else:
-                logging.info(f'')
+                logging.info(f'getting information for issue {issue}')
                 source_child = type(source)(key=issue, repo=source.repo)  # If not, make a new Issue object for it
 
             if source_child.__class__.__name__ == 'ZenHubIssue':  # Get the key of the same issue in the opposite
@@ -89,11 +100,14 @@ class Sync:
             else:
                 twin_key = source_child.github_key
 
-            if twin_key not in sink_children:  # issue belongs to this epic in source but not sink yet,
-                sink.change_epic_membership(add=twin_key)  # so add it as a child of sink
+            if twin_key:
+                if twin_key not in sink_children:  # issue belongs to this epic in source but not sink yet,
+                    sink.change_epic_membership(add=twin_key)  # so add it as a child of sink
 
-            else:  # issue already belongs to this epic in both source and sink; remove it from the list so we can
-                sink_children.remove(twin_key)  # tell if any are left at the end
+                else:  # issue already belongs to this epic in both source and sink; remove it from the list so we can
+                    sink_children.remove(twin_key)  # tell if any are left at the end
+            else:
+                logging.warning(f'Cannot update issue {issue} epic membership in other management system - no link identified')
 
         for issue in sink_children:              # any issues left in this list do not belong to the epic in source,
             sink.change_epic_membership(remove=issue)  # so they are removed from the epic in sink.

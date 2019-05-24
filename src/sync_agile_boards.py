@@ -1,17 +1,17 @@
 import argparse
-import json
 import logging
+import shlex
 
 from src.jira import JiraIssue, JiraRepo
 from src.sync import Sync
 from src.zenhub import ZenHubIssue, ZenHubRepo
 
-# TODO more options that would be nice to have:
-#    - should automatically add in epic children to the sync list if they are not given
+
+logging.basicConfig(filename='~/sync_agile_boards/sync_agile_boards.log', level=logging.INFO)
+log = logging.getLogger()
 
 
 def main():
-    logging.basicConfig(filename='sync_agile_boards.log', level=logging.INFO)
 
     parser = argparse.ArgumentParser()  # Make an argument parser with subparsers
     subparsers = parser.add_subparsers()
@@ -41,11 +41,10 @@ def main():
 
     args = parser.parse_args()  # Get the arguments that were entered
 
-    if 'file' in args:  # Use a config file and parse each command in the list as if it were entered in the command line
+    if 'config_file' in args:  # Use a config file and parse each command in the list as if it were entered in the command line
         with open(args.config_file, 'r') as f:
-            config = json.loads(f)
-            for command in config['sync_configs']:  # A list of strings
-                args = parser.parse_args(command.split(' '))
+            for command in f.readlines():  # A list of strings
+                args = parser.parse_args(shlex.split(command))
                 run_synchronization(args)
     else:
         run_synchronization(args)
@@ -54,7 +53,7 @@ def main():
 def run_synchronization(args):
     """Run synchronization as specified in the given command line arguments"""
 
-    logging.info(f'Running synchronization with args {args}')
+    log.info(f"Running synchronization with args {str(vars(args))}")
     jira_org, jira_repo = args.jira.split('/')
     zenhub_org, zenhub_repo = args.zenhub.split('/')
 
