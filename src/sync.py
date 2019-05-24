@@ -1,4 +1,7 @@
 import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Sync:
@@ -18,23 +21,29 @@ class Sync:
                     print(f'Skipping issue {issue.github_key}: {issue.jira_key} not found in Jira board')
 
         elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
-            for issue in source.issues.values():
+            for key, issue in source.issues.items():
+                print(f'syncing {sink.issues[issue.github_key]} from {key}')
                 for i in range(3):  # Allow for 3 tries
                     try:
                         if issue.github_key:
                             try:
                                 Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
                             except KeyError as e:
-                                print(e)
-                                print(f'Skipping issue {issue.jira_key}: {issue.github_key} not found in ZenHub board')
+                                raise ValueError(f'Issue {issue.github_key} referenced from {issue.jira_key} not found in board')
                         else:
-                            print(f'Skipping issue {issue.jira_key}: no GitHub link identified')
+                            print("skipping this issue")
                         break
 
                     except RuntimeError as e:  # The API rate limit may have been reached
                         print(repr(e))
                         time.sleep(10)  # Try again in 10 seconds, hopefully the API limit will have reset
                         continue
+
+    @staticmethod
+    def mirror_sync(jira_repo: 'JiraRepo', zenhub_repo: 'ZenHubRepo'):
+        for issue in jira_repo.issues.values():
+            twin = zenhub_repo.issues[issue.github_key]
+            Sync.sync_from_most_current(issue, twin)
 
     @staticmethod
     def sync_from_specified_source(source: 'Issue', destination: 'Issue'):
@@ -56,8 +65,10 @@ class Sync:
     def sync_from_most_current(a: 'Issue', b: 'Issue'):
 
         if a.updated > b.updated:  # a is the most current
+            print(f'syncing {b} (updated at {b.updated}) from {a} (updated at {a.updated})')
             Sync.sync_from_specified_source(a, b)  # use a as the source
         else:
+            print(f'syncing {a} (updated at {a.updated}) from {b} (updated at {b.updated})')
             Sync.sync_from_specified_source(b, a)
 
     @staticmethod
@@ -83,3 +94,26 @@ class Sync:
 
         for issue in sink_children:              # any issues left in this list do not belong to the epic in source,
             sink.change_epic_membership(remove=issue)  # so they are removed from the epic in sink.
+
+    @staticmethod
+    def sync_sprints(source: 'Issue', sink: 'Issue'):
+
+        if source.__class__.__name__ == 'ZenHubIssue':
+            if source.github_milestone is None:
+                logger.info(f'Sync sprint: Issue {source.github_key} does not belong to any sprint')
+                return
+            elif sink.github_milestone == source.github_milestone:
+                logger.info(f'Sync sprint: Issue {sink.jira_key} is in sprint {source.github_milestone}')
+                return
+            else:
+                assert sink.__class__.__name__ == 'JiraIssue'
+                if sink.jira_sprint_id is None:
+                    sprint_title = source.github_milestone
+                    status_code = sink._get_sprint_id(sprint_title)
+                    if status_code == 200:
+                        logger.info(f'Sync sprint: Added issue {sink.jira_key} to sprint {sprint_title}')
+                        sink.add_to_sprint()
+                    else:
+                        logger.warning(
+                            f'Sync sprint: No Sprint ID found for {sink.jira_key} and sprint title {sprint_title}')
+                        return

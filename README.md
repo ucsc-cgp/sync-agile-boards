@@ -8,8 +8,20 @@ Use token-based authorization to access the ZenHub, GitHub, and Jira APIs. Go to
 * https://github.com/settings/tokens to get the GitHub token
 * https://id.atlassian.com/manage/api-tokens to get the Jira token
 
-The default location the code searches for the tokens are `~/.zenhub_config`, `~/.github_config`, and `~/.jira_config`, respectively.
-Note that the Jira config file must contain both username and token base 64 encoded in the format `you@gmail.com:your-token`. For ZenHub and GitHub only the unencoded token is necessary.
+The default location the code searches for the tokens are `~/.sync-agile-board-zenhub_config`, `~/.sync-agile-board-github_config`, and `~/.sync-agile-board-jira_config`, respectively.
+For ZenHub and GitHub only the API token is necessary.
+
+### Jira authorization
+The Jira config file must contain both, username and token, in the format `you@email.com:your-token`, where `your-token` 
+needs to be Base64-encoded. For instance, if your Jira API token is `your-token`, run in Python 3:
+```python
+import base64
+my_auth = 'you@email.com:' + 'your-token'
+encoded_token = base64.b64encode(my_auth.encode()).decode()
+print(encoded_token)
+   eW91QGVtYWlsLmNvbTp5b3VyLXRva2Vu
+``` 
+Write `encoded_token` to `~/.sync-agile-board-jira_config`.
 
 ## Return information from ZenHub
 

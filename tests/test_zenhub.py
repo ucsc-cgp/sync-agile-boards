@@ -1,4 +1,6 @@
 #!/usr/env/python3
+
+import pytz
 import datetime
 import re
 import unittest
@@ -21,31 +23,52 @@ def mocked_response(*args, **kwargs):
 
     # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
     # Happy Path:
-    if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',):
+    if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',) and \
+            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
         return MockResponse(
             {'estimate': {'value': 2},
              'plus_ones': [],
              'pipeline': {'name': 'Review/QA'},
              'is_epic': False},
             200,
-            'Ok'
+            'OK'
         )
+
+    # Issue events
+    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42/events',) and \
+            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+        return MockResponse(
+            [{'created_at': '2019-05-08T22:13:43.512Z',
+              'from_estimate': {'value': 8},
+              'to_estimate': {'value': 4},
+              'type': 'estimateIssue'},
+             {'created_at': '2019-04-20T14:12:40.900Z',
+              'from_estimate': {'value': 4},
+              'to_estimate': {'value': 8},
+              'type': 'estimateIssue'}],
+            200,
+            'OK'
+        )
+
     # Non-existent issue number:
-    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/55555555',):
+    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/55555555',) and \
+            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
         return MockResponse(
             {'message': 'Issue not found'},
             404,
-            'Not found'
+            'Not Found'
         )
     # Non-existent repo number
-    elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',):
+    elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',) and \
+            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
         return MockResponse(
             {'message': 'Invalid Field for repo_id: repo_id is a required field'},
             422,
             'Unprocessable Entity'
         )
     elif '/board' in args[0]:  # The request used for determining pipeline ids in _get_pipeline_ids().
-        return MockResponse({'pipelines': [{'id': 1, 'name': 'Done', 'issues': []}, {'id': 2, 'name': 'Review/QA', 'issues': []}]}, 200, 'OK')
+        return MockResponse({'pipelines': [{'id': 1, 'name': 'Done', 'issues': []}, {'id': 2, 'name': 'Review/QA',
+                                                                                     'issues': []}]}, 200, 'OK')
 
     elif 'https://api.github.com/repos/ucsc-cgp/abc/issues/' in args[0]:  # Mock GitHub issue information
         match_obj = re.search(r'issues/(\d*)', args[0])
@@ -122,7 +145,8 @@ class TestZenHub(unittest.TestCase):
     def test_update_issue_to_epic(self, mock_requests_post, mock_url_creator, mock_repo_id):
         """Test that ZenHub.update_issue_to_epic() works."""
 
-        mock_url_creator.return_value = f'https://api.zenhub.io/p1/repositories/123456789/issues/42/convert_to_epic'
+        mock_url_creator.return_value = \
+            f'https://api.zenhub.io/p1/repositories/123456789/issues/42/convert_to_epic'
         mock_requests_post.return_value.status_code = 200
 
         self.zen.promote_issue_to_epic()
@@ -137,6 +161,12 @@ class TestZenHub(unittest.TestCase):
         expected_dict = {'headers': self.board.headers.copy()}
         expected_dict.update({'json': {'issues': [{'repo_id': self.board.id, 'issue_number': str(42)}]}})
         self.assertIn(expected_dict, request_args)
+
+    @patch('requests.get', side_effect=mocked_response)
+    def test_get_most_recent_event(self, get):
+        """Test that get_most_recent_event() gets a correct datetime object from a list of events"""
+        expected = datetime.datetime(2019, 5, 8, 22, 13, 43, tzinfo=pytz.timezone('UTC'))
+        self.assertEqual(self.zen.get_most_recent_event(), expected)
 
 
 if __name__ == '__main__':

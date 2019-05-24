@@ -1,19 +1,92 @@
 #!/usr/env/python3
+import datetime
+import json
+import logging
+import os
+import pytz
+import requests
+import sys
 
 from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.github import GitHubRepo, GitHubIssue
-from src.utilities import get_jira_status, _get_repo_url
-
-import logging
-import requests
-import sys
+from src.utilities import get_repo_id, get_jira_status, _get_repo_url
 
 sys.path.append('.')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
+
+logger = logging.getLogger(__name__)
+
+
+def main():
+    org_name = sys.argv[1]
+    repo_name = sys.argv[2]
+    issue = sys.argv[3]
+
+    zen = ZenHub(org_name=org_name, repo_name=repo_name, issue=issue)
+    print(json.dumps(zen.get_info()))
+
+
+class ZenHub:
+
+    def __init__(self, org_name, repo_name, issue):
+        self.access_params = get_access_params(mgmnt_sys='zenhub')
+        self.org_name = org_name
+        self.repo_name = repo_name
+        self.headers = {'X-Authentication-Token': self.access_params['api_token'], 'Content-Type': 'application/json'}
+        d = get_repo_id(repo_name, org_name)
+        if d['status_code'] is not 200:
+            raise ValueError(f'Check if {repo_name} is an existing repository the organization {org_name}.')
+        self.repo_id = str(d['repo_id'])
+        self.issue = str(issue)
+        self.url = self._generate_url()
+
+    def get_info(self):
+        url = self._generate_url()
+        logger.info(f'Getting pipeline, storypoints and timestamp for story {self.issue} in repo {self.repo_name}')
+        r = requests.get(url, headers=self.headers)
+        if r.status_code == 200:
+            data = r.json()
+            pipeline = data['pipeline']['name']
+            if not data['plus_ones']:
+                timestamp = 'Not available'
+            else:
+                timestamp = data['plus_ones']['created_at']
+            if 'estimate' not in data.keys():
+                storypoints = 'None'
+            else:
+                storypoints = data['estimate']['value']
+            return {'Story number': self.issue,
+                    'Repository': self.repo_name,
+                    'Pipeline': pipeline,
+                    'Storypoints': storypoints,
+                    'Timestamp': timestamp}
+
+        else:
+            return r.json()
+
+    def _generate_url(self):
+        _url = self.access_params['options']['server']
+        return os.path.join(_url, self.repo_id, 'issues', self.issue)
+
+    def _get_pipeline_ids(self):
+        # Determine the valid pipeline IDs for this repo.
+        logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
+        r = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
+
+        if r.status_code == 200:
+            logger.info(f'Successfully retrieved pipeline ids for {self.repo_name}.')
+            data = r.json()
+            ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
+            return ids
+        else:
+            logger.info(
+                f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.text}')
+            raise RuntimeError(
+                f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.text}')
 
 
 class ZenHubRepo(Repo):
@@ -105,6 +178,10 @@ class ZenHubIssue(Issue):
         # Fill in the missing information for this issue that's in GitHub but not ZenHub
         self.update_from(self.github_equivalent)
 
+        # Get the most current update timestamp for this issue, whether in GitHub or ZenHub
+        # Changes to pipeline and estimate are not reflected in GitHub, so ZenHub events must be checked
+        self.updated = max(self.github_equivalent.updated, self.get_most_recent_event())
+
         self.status = get_jira_status(self)
 
     def update_remote(self):
@@ -170,6 +247,20 @@ class ZenHubIssue(Issue):
 
         self.repo.api_call(requests.post, f'{self.repo.id}/epics/{self.github_key}/update_issues', json=content)
 
-if __name__ == '__main__':
-    z = ZenHubRepo(org='ucsc-cgp', repo_name='sync-test')
-    print(z.issues.keys())
+    def get_most_recent_event(self) -> datetime:
+
+        response = requests.get(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/events',
+                                headers=self.repo.headers)
+        default_tz = pytz.timezone('UTC')
+        if response.status_code == 200:
+            content = response.json()
+        else:
+            raise ValueError(f'{response.status_code} error when getting issue {self.github_key} events')
+
+        if content:
+            # Get the first, most recent event in the list. Get its timestamp and convert to a datetime object,
+            # ignoring the milliseconds and Z after the period and localizing to UTC time.
+            return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0],
+                                                                  '%Y-%m-%dT%H:%M:%S'))
+        else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
+            return default_tz.localize(datetime.datetime.min)

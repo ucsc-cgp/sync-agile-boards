@@ -2,27 +2,29 @@ import datetime
 from more_itertools import first
 import re
 import requests
+import logging
 
 from settings import transitions
 from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.utilities import CrypticNames, get_zenhub_pipeline
 
+logger = logging.getLogger(__name__)
+
 
 class JiraRepo(Repo):
 
-    def __init__(self, repo_name, jira_org, issues: list = None, updated_since: datetime = None):
+    def __init__(self, repo_name, jira_org, issues: list = None):
         """Create a Project storing all issues belonging to the provided project key
         :param repo_name: Required. The repo to work with e.g. TEST
         :param jira_org: Required. The organization the repo belongs to, e.g. ucsc-cgl
         :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
         retrieve and update the listed issues.
-        :param updated_since: If specified, get just the issues that have been updated since the time given in this
-        datetime object. Otherwise, get all issues in the repo.
         """
 
         super().__init__()
         self.url = get_access_params('jira')['options']['server'] % jira_org
+        self.alt_url = get_access_params('jira')['options']['alt_server'] % jira_org
         self.headers = {'Authorization': 'Basic ' + get_access_params('jira')['api_token']}
 
         self.name = repo_name
@@ -34,14 +36,7 @@ class JiraRepo(Repo):
                 self.issues[issue] = JiraIssue(key=issue, repo=self)
 
         else:  # By default, get all issues
-            if updated_since:  # format the timestamp to use in a Jira query
-                timestamp_filter = f" AND updated>='{updated_since.strftime('%Y-%m-%d %H:%M')}'"
-            else:
-                timestamp_filter = ''  # otherwise do not filter by timestamp
-
-            content = self.api_call(requests.get, f'search?jql=project={self.name}{timestamp_filter}&startAt=', page=0)
-            for issue in content['issues']:
-                self.issues[issue['key']] = JiraIssue(content=issue, repo=self)
+            self.api_call()  # Get information for all issues in the project
 
         # self.github_org, self.github_repo = board_map[jira_org][repo]
 
@@ -79,10 +74,15 @@ class JiraIssue(Issue):
         self.status = content['fields']['status']['name']
 
         self.summary = content['fields']['summary']
-        self.updated = datetime.datetime.strptime(content['fields']['updated'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
+
+        # Convert the timestamps into datetime objects and localize them to PST time
+        self.updated = datetime.datetime.strptime(content['fields']['updated'].split('.')[0],
+                                                  '%Y-%m-%dT%H:%M:%S').replace(
+            tzinfo=JiraIssue.get_utc_offset(content['fields']['updated']))
 
         # Not all issue descriptions have the corresponding github issue listed in them
-        self.github_repo_name, self.github_key = self.get_github_equivalent() or (None, None)
+        # self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)
+        self.get_github_equivalent()
 
         if CrypticNames.story_points in content['fields'].keys():
             self.story_points = content['fields'][CrypticNames.story_points]
@@ -92,23 +92,40 @@ class JiraIssue(Issue):
                 # This field is a list containing a dictionary that's been put in string format.
                 # Sprints can have duplicate names. id is the unique identifier used by the API.
 
-                match_obj = re.search(r'id=(\w*),', content['fields']['customfield_10010'][0])
+                sprint_info = first(content['fields'][CrypticNames.sprint])
+
+                match_obj = re.search(r'id=(\w*),', sprint_info)
                 if match_obj:
-                    self.jira_sprint = int(match_obj.group(1))
-                else:
-                    print('No sprint name was found in the sprint field')
+                    self.jira_sprint_id = int(match_obj.group(1))
+                    logger.info(f'No sprint ID was found in {CrypticNames.sprint}'
+                                ' - trying different way to find sprint ID...')
 
         self.pipeline = get_zenhub_pipeline(self)  # This must be done after sprint status is set
 
-    def get_github_equivalent(self):
-        """Find the equivalent Github issue key and repo name if listed in the issue text. Issues synced by unito-bot
-        will have this information."""
+    @staticmethod
+    def get_utc_offset(timestamp):
+        """Return a timezone object representing the UTC offset found in the timestamp"""
+        offset_direction = timestamp[-5]  # A plus or minus sign
+        offset_hours = int(timestamp[-4:-2])
+        offset_minutes = int(timestamp[-2:])
+        offset_seconds = offset_hours * 3600 + offset_minutes * 60
+        return datetime.timezone(datetime.timedelta(seconds=int(offset_direction + str(offset_seconds))))
 
+    def get_github_equivalent(self):
+        """Find the equivalent Github issue key, repository name, milestone name and number if listed in the
+        description field. Issues synchronized by Unito will have this information, but not all issue descriptions
+        have the corresponding GitHub issue listed in them."""
         if self.description:
-            match_obj = re.search(r'Repository Name: ([\w_-]*)[\s\S]*Issue Number: ([\w-]*)', self.description)
-            if match_obj:
-                return match_obj.group(1), match_obj.group(2)
-            print(self.jira_key, 'No match was found in the description.')
+            match_obj1 = re.search(r'(?<=Repository Name: )(.*?)(?={color})', self.description)
+            match_obj2 = re.search(r'(?<=Issue Number: )(.*?)(?={color})', self.description)
+            match_obj3 = re.search(r'(?<=Milestone: )(.*?)(?={color})', self.description)
+            match_obj4 = re.search(r'(?<=github.com/)(.*?)(?=/)', self.description)
+            if not any([match_obj1, match_obj2, match_obj3, match_obj4]):
+                print('No match was found in the description.')
+            self.github_repo = match_obj1.group(0) if match_obj1 else None
+            self.github_key = match_obj2.group(0) if match_obj2 else None
+            self.github_milestone = match_obj3.group(0) if match_obj3 else None
+            self.github_org = match_obj4.group(0) if match_obj4 else None
 
     def dict_format(self) -> dict:
         """Describe this issue in a dictionary that can be posted to Jira"""
@@ -127,8 +144,8 @@ class JiraIssue(Issue):
         if self.assignees:
             d['fields']['assignee'] = {'name': self.assignees[0]}
 
-        if self.jira_sprint:
-            d['fields']['customfield_10010'] = self.jira_sprint
+        if self.jira_sprint_id:
+            d['fields']['customfield_10010'] = self.jira_sprint_id
 
         return d
 
@@ -164,7 +181,27 @@ class JiraIssue(Issue):
         children = [i['key'] for i in self.repo.api_call(requests.get, f"search?jql=cf[10008]='{self.jira_key}'")['issues']]
         return children
 
+    def add_to_sprint(self):
+        url = self.repo.alt_url + f'sprint/{self.jira_sprint_id}/issue'
+        response = requests.post(url, headers=self.repo.headers, json={'issues': [self.jira_key]})
+        if response.status_code != 204:  # HTTP 204 is OK
+            logger.warning(f'{response.status_code}: '
+                           f'Sync sprint: Error adding {self.jira_key} to '
+                           f'sprint {self.jira_sprint_id}: {response.text}')
+
+    def _get_sprint_id(self, sprint_title: str):
+        base_url = self.repo.url
+        url = base_url + f'search?jql=sprint="{sprint_title}"'
+        response = requests.get(url, headers=self.repo.headers)
+        if response.status_code == 200:
+            data = response.json()['issues'][0]['fields']['customfield_10010']
+            # The following attempts to extract the sprint ID from a string wrapped in a list, which contains one "["
+            # character. It is very cryptic. Please see test in for Sync class for an example of "data".
+            sprint_info = data[0].split('[')[1].split(',')
+            self.jira_sprint_id = int(re.search('\d+', sprint_info[0]).group(0))
+            logger.info(f'Sync sprint: Found sprint ID for sprint {sprint_title}')
+        return response.status_code
+
 
 if __name__ == '__main__':
-    j = JiraRepo(jira_org='ucsc-cgl', repo_name='TEST')
-    print(j.issues)
+    j = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-3'])

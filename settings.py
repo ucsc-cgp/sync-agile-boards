@@ -11,6 +11,7 @@ urls = dict(
 )
 
 url_mgmnt_sys = dict(
+    jira_alt_url='https://%s.atlassian.net/rest/agile/1.0/',  # alternative URL, e.g. to add issues to a sprint
     jira_url='https://%s.atlassian.net/rest/api/latest/',  # string format character included to be replaced with org
     zenhub_url='https://api.zenhub.io/p1/repositories/'
     )

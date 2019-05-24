@@ -1,4 +1,10 @@
 import requests
+#! /usr/bin/env python3
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 
 class Issue:
@@ -12,9 +18,11 @@ class Issue:
         self.github_key = None  # str, this identifier is used by ZenHub and github
         self.issue_type = None  # str, for Jira: Epic or Task or Story or Bug, for ZenHub: Epic or Issue
         self.jira_key = None  # str, this identifier is only used by jira
-        self.jira_sprint = None  # str
-        self.milestone = None  # int, github's equivalent of sprints?
-
+        self.jira_sprint_id = None  # str
+        self.github_key = None
+        self.github_milestone = None
+        self.github_milestone_number = None
+        self.github_org = None
         self.pipeline = None  # str, issue state in zenhub
         self.status = None  # str, issue state in jira
         self.story_points = None  # int
@@ -28,6 +36,7 @@ class Issue:
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
         """
+        # TODO sync assignees
 
         # Headers, url, and token are specific to the issue being in Jira or ZenHub.
         # Description and assignees are more complicated to sync.
@@ -51,8 +60,12 @@ class Issue:
     def merge_descriptions(source: str, sink: str) -> str:
         """Merge issue descriptions by copying over description text without changing the sync info put in by Unito"""
 
-        unito_link = [line for line in sink.split('\n') if line.startswith('┆')]  # lines added by unito start with ┆
-        new_description = [line for line in source.split('\n') if not line.startswith('┆')]
+        if sink.startswith('┆'):  # lines added by unito start with ┆
+            unito_link = [line for line in sink.split('\n') if line.startswith('┆')]
+            new_description = [line for line in source.split('\n') if not line.startswith('┆')]
+        else:  # source contains Unito-added text
+            unito_link = [line for line in source.split('\n') if line.startswith('┆')]
+            new_description = [line for line in sink.split('\n') if not line.startswith('┆')]
         return '\n'.join(new_description) + '\n'.join(unito_link)
 
     def print(self):
