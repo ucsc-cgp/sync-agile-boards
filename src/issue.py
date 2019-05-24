@@ -80,29 +80,32 @@ class Repo:
         :param url_head: Defaults to self.repo.url, e.g. 'https://api.zenhub.io/p1/repositories/'. Can be set to
                          another value, like for using the old API version.
         :param json: The dictionary-formatted payload to send with the request.
-        :param page: For paginated responses, the page/response number upon which to make the next call.
+        :param page: For paginated responses, the page/response number upon which to make the next call. This should
+                     always be called with either 0 or 1 depending on the API being used. It will then make recursive
+                     calls incrementing the page number each time until there are no more pages.
         :param success_code: The HTTP response code that should be returned on success. Defaults to 200; may need to be
                              set to 204 for some cases.
         """
 
         response = action(f'{url_head or self.url}{url_tail}{page}', headers=self.headers, json=json)
 
-        if response.status_code != success_code:
-            raise RuntimeError(f'{response.status_code} Error: {response.text}')
-        else:
+        if response.status_code == success_code:
+
             if action == requests.get:
                 content = response.json()
             else:
                 content = {}  # Some other requests return blank json content and decoding them causes an error
 
-        if page:  # Need to check if there is another page of results to get
-            if 'total' and 'maxResults' in content.keys():  # For Jira
-                if content['total'] >= page + content['maxResults']:  # There could be another page of results
-                    content.update(self.api_call(action, url_tail, url_head=url_head, json=json,
-                                                 page=page + content['maxResults'], success_code=success_code))
+            if page:  # Need to check if there is another page of results to get
+                if 'total' and 'maxResults' in content.keys():  # For Jira
+                    if content['total'] >= page + content['maxResults']:  # There could be another page of results
+                        content.update(self.api_call(action, url_tail, url_head=url_head, json=json,
+                                                     page=page + content['maxResults'], success_code=success_code))
 
-            elif 'rel="next"' in response.headers['Link']:  # For GitHub, update the 'items' list with the next page
-                content['items'].extend(self.api_call(action, url_tail, url_head=url_head, json=json, page=page + 1,
-                                                      success_code=success_code)['items'])
+                elif 'rel="next"' in response.headers['Link']:  # For GitHub, update the 'items' list with the next page
+                    content['items'].extend(self.api_call(action, url_tail, url_head=url_head, json=json, page=page + 1,
+                                                          success_code=success_code)['items'])
+            return content
 
-        return content
+        else:
+            raise RuntimeError(f'{response.status_code} Error: {response.text}')

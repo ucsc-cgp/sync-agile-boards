@@ -80,8 +80,11 @@ class ZenHubIssue(Issue):
         self.repo = repo
 
         if not content:
-            content = self.repo.api_call(requests.get, f'{self.repo.id}/issues/{key}')
-            content['issue_number'] = key
+            if key:
+                content = self.repo.api_call(requests.get, f'{self.repo.id}/issues/{key}')
+                content['issue_number'] = key
+            else:
+                raise RuntimeError("Both key and content missing from ZenHubIssue constructor")
 
         self.github_key = content['issue_number']  # this identifier is used by zenhub and github
 
@@ -132,7 +135,7 @@ class ZenHubIssue(Issue):
             self.repo.api_call(requests.post, f'{self.repo.id}/issues/{self.github_key}/moves', json=json_dict)
 
         else:
-            print(f'Cannot update issue {self.github_key} pipeline: not a valid pipeline')
+            logging.warning(f'Cannot update issue {self.github_key} pipeline: not a valid pipeline')
 
     def promote_issue_to_epic(self):
         """Convert an issue to an epic"""
