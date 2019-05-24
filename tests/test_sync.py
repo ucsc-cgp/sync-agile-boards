@@ -1,10 +1,10 @@
 import re
 import unittest
-
 from unittest.mock import patch, call
+
 from src.jira import JiraRepo, JiraIssue
 from src.sync import Sync
-from src.zenhub import ZenHubRepo, ZenHubIssue
+from src.zenhub import ZenHubIssue, ZenHubRepo
 
 # JIRA-5 is a Jira Story corresponding to GitHub issue GHUB-5
 JIRA_5 = {
@@ -525,7 +525,7 @@ class TestSync(unittest.TestCase):
 
     @patch('src.jira.JiraIssue.change_epic_membership')
     @patch('src.zenhub.ZenHubIssue.change_epic_membership')
-    @patch('src.zenhub.get_repo_id', return_value={'repo_id': '123'})
+    @patch('src.zenhub.ZenHubRepo.get_repo_id', return_value={'repo_id': '123'})
     @patch('src.zenhub.ZenHubIssue.get_epic_children', return_value=['3', '4'])
     @patch('src.jira.JiraIssue.get_epic_children', return_value=['TEST-1', 'TEST-3'])
     def test_sync_epics(self, jira_children, zen_children, repo_id, change_zen_epic, change_jira_epic):
@@ -708,3 +708,8 @@ class TestSync(unittest.TestCase):
 
     def tearDown(self):
         patch.stopall()  # Stop all the patches that were started in setUp
+
+
+
+
+
