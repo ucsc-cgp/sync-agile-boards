@@ -83,7 +83,8 @@ class GitHubIssue(Issue):
         self.updated = default_tz.localize(datetime.datetime.strptime(content['updated_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S'))
 
         if content['milestone']:
-            self.milestone = content['milestone']['number']
+            self.github_milestone = content['milestone']['title']
+            self.github_milestone_number = content['milestone']['number']
 
         # TODO: Note that GitHub api responses have both dict 'assignee' and dict array 'assignees' fields. 'assignee'
         #  is deprecated. This could cause problems if multiple people are assigned to an issue in GitHub, because the

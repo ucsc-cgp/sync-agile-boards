@@ -9,8 +9,10 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s',
-                    filename=f'{ROOT_DIR}.log',
+                    filename=f'{ROOT_DIR}/sync-agile-boards.log',
                     filemode='w')
+
+logger = logging.getLogger(__name__)
 
 
 def get_access_params(mgmnt_sys):
@@ -23,7 +25,8 @@ def get_access_params(mgmnt_sys):
     mgmnt_sys = mgmnt_sys.lower()
 
     if mgmnt_sys in ['jira', 'atlassian']:
-        options = {'server': url_mgmnt_sys['jira_url']}
+        options = {'server': url_mgmnt_sys['jira_url'],
+                   'alt_server': url_mgmnt_sys['jira_alt_url']}
         path_to_token = token_path['api_token_jira']
         # logging.info('Accessing Jira')
     elif mgmnt_sys in ['zen', 'zenhub']:
@@ -51,4 +54,4 @@ def _get_token(path_to_token):
             tok = ''.join(tok.split())
             return tok
     except FileNotFoundError as e:
-        logging.info(e.strerror)
+        logging.error(f'Failed to open file, {e.strerror}', exc_info=True)

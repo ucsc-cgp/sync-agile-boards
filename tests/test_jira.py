@@ -94,8 +94,10 @@ class TestJiraIssue(unittest.TestCase):
     @classmethod
     @patch('src.jira.get_access_params')
     @patch('src.jira.requests.get', side_effect=mocked_response)
-    def setUpClass(cls, get_mocked_response, get_mocked_token):
-        get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
+    def setUp(cls, get_mocked_response, get_mocked_token):
+        get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/',
+                                                     'alt_server': 'https://mock-%s.atlassian.net/rest/agile/1.0/'},
+                                         'api_token': 'mock token'}
 
         # Initialize a board with all its issues
         cls.board = JiraRepo(repo_name='TEST', jira_org='org')
@@ -121,7 +123,9 @@ class TestJiraIssue(unittest.TestCase):
             JiraIssue(key='NONEXISTENT-ISSUE', repo=self.board)
 
     def test_get_github_equivalent(self):
-        self.assertEqual(self.j.get_github_equivalent(), ('abc', '25'))
+        self.j.get_github_equivalent()
+        self.assertEqual(self.j.github_key, '25')
+        self.assertEqual(self.j.github_repo, 'abc')
 
     def test_dict_format(self):
         d = self.j.dict_format()
@@ -148,6 +152,3 @@ class TestJiraIssue(unittest.TestCase):
         self.assertEqual(self.l.status, 'In Progress')
         self.assertEqual(self.l.assignees, ['aaaaa'])
         self.assertEqual(self.l.story_points, 7.0)
-
-
-

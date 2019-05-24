@@ -9,10 +9,7 @@ from src.access import get_access_params
 from src.issue import Issue
 from settings import urls
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-FORMAT = '%(asctime)-15s %(message)s'
-logging.basicConfig(format=FORMAT)
+logger = logging.getLogger(__name__)
 
 
 def get_repo_id(repo_name, org_name):
@@ -72,7 +69,7 @@ def get_zenhub_pipeline(i: 'Issue'):
         'Done': 'Done',
         'Rejected': 'Closed'
     }
-    if i.jira_sprint is None:  # issue is in the backlog
+    if i.jira_sprint_id is None:  # issue is in the backlog
         return backlog_map[i.status]
     else:
         return sprint_map[i.status]
@@ -98,5 +95,3 @@ class CrypticNames:
     """A class to hold field ids with names that aren't self explanatory"""
     sprint = 'customfield_10010'
     story_points = 'customfield_10014'
-
-

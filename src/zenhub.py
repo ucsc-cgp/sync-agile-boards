@@ -1,6 +1,7 @@
 #!/usr/env/python3
 import datetime
 import json
+import logging
 import os
 import pytz
 import requests
@@ -12,6 +13,12 @@ from src.github import GitHubRepo, GitHubIssue
 from src.utilities import get_repo_id, get_jira_status
 
 sys.path.append('.')
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+FORMAT = '%(asctime)-15s %(message)s'
+logging.basicConfig(format=FORMAT)
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -66,13 +73,17 @@ class ZenHub:
 
     def _get_pipeline_ids(self):
         # Determine the valid pipeline IDs for this repo.
+        logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
         r = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
 
         if r.status_code == 200:
+            logger.info(f'Successfully retrieved pipeline ids for {self.repo_name}.')
             data = r.json()
             ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
             return ids
         else:
+            logger.info(
+                f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.text}')
             raise RuntimeError(
                 f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.text}')
 
@@ -275,6 +286,7 @@ class ZenHubIssue(Issue):
         if content:
             # Get the first, most recent event in the list. Get its timestamp and convert to a datetime object,
             # ignoring the milliseconds and Z after the period and localizing to UTC time.
-            return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0], '%Y-%m-%dT%H:%M:%S'))
+            return default_tz.localize(datetime.datetime.strptime(content[0]['created_at'].split('.')[0],
+                                                                  '%Y-%m-%dT%H:%M:%S'))
         else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
             return default_tz.localize(datetime.datetime.min)
