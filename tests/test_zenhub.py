@@ -23,8 +23,7 @@ def mocked_response(*args, **kwargs):
 
     # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
     # Happy Path:
-    if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    if args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42',):
         return MockResponse(
             {'estimate': {'value': 2},
              'plus_ones': [],
@@ -35,8 +34,7 @@ def mocked_response(*args, **kwargs):
         )
 
     # Issue events
-    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42/events',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/42/events',):
         return MockResponse(
             [{'created_at': '2019-05-08T22:13:43.512Z',
               'from_estimate': {'value': 8},
@@ -51,16 +49,14 @@ def mocked_response(*args, **kwargs):
         )
 
     # Non-existent issue number:
-    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/55555555',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    elif args == ('https://api.zenhub.io/p1/repositories/123456789/issues/55555555',):
         return MockResponse(
             {'message': 'Issue not found'},
             404,
             'Not Found'
         )
     # Non-existent repo number
-    elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',) and \
-            kwargs == {'headers': {'X-Authentication-Token': '99999999', 'Content-Type': 'application/json'}}:
+    elif args == ('https://api.zenhub.io/p1/repositories/100000000/issues/55555555',):
         return MockResponse(
             {'message': 'Invalid Field for repo_id: repo_id is a required field'},
             422,

@@ -36,7 +36,9 @@ class JiraRepo(Repo):
                 self.issues[issue] = JiraIssue(key=issue, repo=self)
 
         else:  # By default, get all issues
-            self.api_call()  # Get information for all issues in the project
+            content = self.api_call(requests.get, f'search?jql=project={self.name}&startAt=', page=0)
+            for issue in content['issues']:
+                self.issues[issue['key']] = JiraIssue(content=issue, repo=self)
 
         # self.github_org, self.github_repo = board_map[jira_org][repo]
 
