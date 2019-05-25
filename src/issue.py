@@ -1,10 +1,9 @@
-import requests
 #! /usr/bin/env python3
 
 import logging
+import requests
 
 logger = logging.getLogger(__name__)
-
 
 
 class Issue:
@@ -36,13 +35,9 @@ class Issue:
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
         """
-        # TODO sync assignees
 
         # Headers, url, and token are specific to the issue being in Jira or ZenHub.
-        # Description and assignees are more complicated to sync.
-        self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['headers', 'url', 'token',
-                                                                                          'description', 'assignees',
-                                                                                          'repo']})
+        self.__dict__.update({k: v for k, v in source.__dict__.items() if v and k not in ['repo']})
 
         # The ZenHub story point value cannot be set to None. If it's being updated from a Jira issue with no story
         # point value, set the story points to 0.

@@ -5,13 +5,6 @@ import os
 from pathlib import Path
 from settings import urls, url_mgmnt_sys, token_path
 
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(levelname)s %(message)s',
-                    filename=f'{ROOT_DIR}/sync-agile-boards.log',
-                    filemode='w')
-
 logger = logging.getLogger(__name__)
 
 

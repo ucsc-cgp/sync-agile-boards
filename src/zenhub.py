@@ -1,8 +1,6 @@
 #!/usr/env/python3
 import datetime
-import json
 import logging
-import os
 import pytz
 import requests
 import sys
@@ -10,83 +8,10 @@ import sys
 from src.access import get_access_params
 from src.issue import Repo, Issue
 from src.github import GitHubRepo, GitHubIssue
-from src.utilities import get_repo_id, get_jira_status, _get_repo_url
+from src.utilities import get_jira_status, _get_repo_url
 
 sys.path.append('.')
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-FORMAT = '%(asctime)-15s %(message)s'
-logging.basicConfig(format=FORMAT)
-
 logger = logging.getLogger(__name__)
-
-
-def main():
-    org_name = sys.argv[1]
-    repo_name = sys.argv[2]
-    issue = sys.argv[3]
-
-    zen = ZenHub(org_name=org_name, repo_name=repo_name, issue=issue)
-    print(json.dumps(zen.get_info()))
-
-
-class ZenHub:
-
-    def __init__(self, org_name, repo_name, issue):
-        self.access_params = get_access_params(mgmnt_sys='zenhub')
-        self.org_name = org_name
-        self.repo_name = repo_name
-        self.headers = {'X-Authentication-Token': self.access_params['api_token'], 'Content-Type': 'application/json'}
-        d = get_repo_id(repo_name, org_name)
-        if d['status_code'] is not 200:
-            raise ValueError(f'Check if {repo_name} is an existing repository the organization {org_name}.')
-        self.repo_id = str(d['repo_id'])
-        self.issue = str(issue)
-        self.url = self._generate_url()
-
-    def get_info(self):
-        url = self._generate_url()
-        logger.info(f'Getting pipeline, storypoints and timestamp for story {self.issue} in repo {self.repo_name}')
-        r = requests.get(url, headers=self.headers)
-        if r.status_code == 200:
-            data = r.json()
-            pipeline = data['pipeline']['name']
-            if not data['plus_ones']:
-                timestamp = 'Not available'
-            else:
-                timestamp = data['plus_ones']['created_at']
-            if 'estimate' not in data.keys():
-                storypoints = 'None'
-            else:
-                storypoints = data['estimate']['value']
-            return {'Story number': self.issue,
-                    'Repository': self.repo_name,
-                    'Pipeline': pipeline,
-                    'Storypoints': storypoints,
-                    'Timestamp': timestamp}
-
-        else:
-            return r.json()
-
-    def _generate_url(self):
-        _url = self.access_params['options']['server']
-        return os.path.join(_url, self.repo_id, 'issues', self.issue)
-
-    def _get_pipeline_ids(self):
-        # Determine the valid pipeline IDs for this repo.
-        logger.info(f'Retrieving pipeline ids for {self.repo_name}.')
-        r = requests.get(f'{self.url}{self.repo_id}/board', headers=self.headers)
-
-        if r.status_code == 200:
-            logger.info(f'Successfully retrieved pipeline ids for {self.repo_name}.')
-            data = r.json()
-            ids = {pipeline['name']: pipeline['id'] for pipeline in data['pipelines']}
-            return ids
-        else:
-            logger.info(
-                f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.text}')
-            raise RuntimeError(
-                f'Error in retrieving pipeline ids. Status Code: {r.status_code}. Reason: {r.text}')
 
 
 class ZenHubRepo(Repo):
@@ -107,14 +32,14 @@ class ZenHubRepo(Repo):
 
         self.name = repo_name
         self.org = org
-        self.id = str(get_repo_id(repo_name, org)['repo_id'])
+        self.id = self.get_repo_id()
         self.pipeline_ids = self._get_pipeline_ids()
         self.github_equivalent = GitHubRepo(repo_name=self.name, org=self.org, issues=[])
 
-        if issues is not None:
+        if issues is not None:  # Only get information for a subset of issues
             for i in issues:
                 self.issues[i] = ZenHubIssue(repo=self, key=i)
-                self.issues[i].repo = self  # Store a reference to the board object
+
         elif open_only:
             self.get_open_issues()  # Only get issues that are open
         else:
@@ -132,14 +57,12 @@ class ZenHubRepo(Repo):
 
     def get_open_issues(self):
         """Retrieve all open issues in this repo thru the ZenHub API"""
-        response = requests.get(f'{self.url}{self.id}/board', headers=self.headers)
-        content = response.json()
 
+        content = self.api_call(requests.get, f'{self.id}/board')
         for pipeline in content['pipelines']:
             for issue in pipeline['issues']:
-                issue['pipeline'] = {}
-                issue['pipeline']['name'] = pipeline['name']
-                self.issues[issue['issue_number']] = ZenHubIssue(repo=self, content=issue)
+                issue['pipeline'] = {'name': pipeline['name']}  # Add in the pipeline info to the sub-dictionary
+                self.issues[str(issue['issue_number'])] = ZenHubIssue(repo=self, content=issue)
 
     def _get_pipeline_ids(self):
         """Determine the valid pipeline IDs for this repo"""
@@ -149,6 +72,7 @@ class ZenHubRepo(Repo):
 
     def get_repo_id(self):
         """Return the repo ID retrieved thru GitHub"""
+
         url = _get_repo_url(self.name, self.org)
         content = self.api_call(requests.get, url_head=url, url_tail='')
         return str(content['id'])
@@ -198,11 +122,10 @@ class ZenHubIssue(Issue):
         # Get the most current update timestamp for this issue, whether in GitHub or ZenHub
         # Changes to pipeline and estimate are not reflected in GitHub, so ZenHub events must be checked
         self.updated = max(self.github_equivalent.updated, self.get_most_recent_event())
-
         self.status = get_jira_status(self)
 
     def update_remote(self):
-        """Push the changes to the remote issue in ZenHub and GitHub"""
+        """Push the changes to the remote issue in ZenHub"""
 
         # Points and pipeline can be updated thru ZenHub's API
         self._update_issue_points()
@@ -210,7 +133,7 @@ class ZenHubIssue(Issue):
 
     def _update_issue_points(self):
         """Update the remote issue's points estimate to the value currently held by the Issue object"""
-
+        logger.debug(f"Updating ZenHub issue {self.github_key}'s points value to {self.story_points}")
         json_dict = {'estimate': self.story_points}
         self.repo.api_call(requests.put, f'{self.repo.id}/issues/{self.github_key}/estimate', json=json_dict)
 
@@ -220,6 +143,7 @@ class ZenHubIssue(Issue):
         See https://github.com/ZenHubIO/API#move-an-issue-between-pipelines for further documentation.
         Issue pipeline name must be valid. By default issues are inserted at the top of the list in the pipeline."""
 
+        logger.debug(f'Updating ZenHub issue {self.github_key} pipeline to {self.pipeline}')
         if self.pipeline in self.repo.pipeline_ids:
             json_dict = {'pipeline_id': self.repo.pipeline_ids[self.pipeline], 'position': 'top'}
             self.repo.api_call(requests.post, f'{self.repo.id}/issues/{self.github_key}/moves', json=json_dict)
@@ -229,13 +153,13 @@ class ZenHubIssue(Issue):
 
     def promote_issue_to_epic(self):
         """Convert an issue to an epic"""
-
+        logger.debug(f'Promoting ZenHub issue {self.github_key} to epic')
         json_dict = {'issues': [{'repo_id': self.repo.id, 'issue_number': self.github_key}]}
         self.repo.api_call(requests.post, f'{self.repo.id}/issues/{self.github_key}/convert_to_epic', json=json_dict)
 
     def demote_epic_to_issue(self):
         """Convert an epic into a regular issue"""
-
+        logger.debug(f'Demoting ZenHub epic {self.github_key} to issue')
         json_dict = {'issues': [{'repo_id': self.repo.id, 'issue_number': self.github_key}]}
         self.repo.api_call(requests.post, f'{self.repo.id}/epics/{self.github_key}/convert_to_issue', json=json_dict)
 
@@ -252,8 +176,10 @@ class ZenHubIssue(Issue):
         :param remove: If specified, remove the given issue from self epic
         """
         if add:
+            logger.debug(f'Adding ZenHub issue {add} to epic {self.github_key}')
             content = {'add_issues': [{'repo_id': int(self.repo.id), 'issue_number': int(add)}]}
         elif remove:
+            logger.debug(f'Removing ZenHub issue {remove} from epic {self.github_key}')
             content = {'remove_issues': [{'repo_id': int(self.repo.id), 'issue_number': int(remove)}]}
         else:
             raise ValueError('need to specify an epic to add to or remove from')
@@ -262,13 +188,8 @@ class ZenHubIssue(Issue):
 
     def get_most_recent_event(self) -> datetime:
 
-        response = requests.get(f'{self.repo.url}{self.repo.id}/issues/{self.github_key}/events',
-                                headers=self.repo.headers)
+        content = self.repo.api_call(requests.get, f'{self.repo.id}/issues/{self.github_key}/events')
         default_tz = pytz.timezone('UTC')
-        if response.status_code == 200:
-            content = response.json()
-        else:
-            raise ValueError(f'{response.status_code} error when getting issue {self.github_key} events')
 
         if content:
             # Get the first, most recent event in the list. Get its timestamp and convert to a datetime object,

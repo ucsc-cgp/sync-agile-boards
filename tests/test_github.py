@@ -75,7 +75,7 @@ class TestGitHubIssue(unittest.TestCase):
         self.assertEqual(self.g.issue_type, None)
         self.assertEqual(self.g.story_points, None)
         self.assertEqual(self.g.created, datetime.datetime(2019, 2, 20, 22, 51, 33, tzinfo=pytz.timezone('UTC')))
-        self.assertEqual(self.g.github_key, 100)
+        self.assertEqual(self.g.github_key, '100')
         self.assertEqual(self.g.repo.name, 'REPO')
         self.assertEqual(self.g.repo.org, 'SOME_ORG')
 

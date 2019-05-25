@@ -1,18 +1,23 @@
 import argparse
 import logging
+import os
 import shlex
 
 from src.jira import JiraIssue, JiraRepo
 from src.sync import Sync
 from src.zenhub import ZenHubIssue, ZenHubRepo
 
+# Set up logging
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(levelname)s %(message)s',
+                    filename=f'{ROOT_DIR}/sync-agile-boards.log',
+                    filemode='w')
 
-logging.basicConfig(filename='~/sync_agile_boards/sync_agile_boards.log', level=logging.INFO)
-log = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def main():
-
     parser = argparse.ArgumentParser()  # Make an argument parser with subparsers
     subparsers = parser.add_subparsers()
 
@@ -39,6 +44,8 @@ def main():
     filter_group.add_argument('-jql', '--jira_query_language', help='Only sync issues that match this query in Jira')
     filter_group.add_argument('-zi', '--zenhub_issues', help='Only sync this list of ZenHub issue numbers e.g. "1, 5, 3"')
 
+    no_file_parser.add_argument('-v', '--verbose', action='store_true', help='Write all log messages to the log file')
+
     args = parser.parse_args()  # Get the arguments that were entered
 
     if 'config_file' in args:  # Use a config file and parse each command in the list as if it were entered in the command line
@@ -53,14 +60,18 @@ def main():
 def run_synchronization(args):
     """Run synchronization as specified in the given command line arguments"""
 
-    log.info(f"Running synchronization with args {str(vars(args))}")
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)  # Show all log messages
+
+    logger.info(f"Running synchronization with args {str(vars(args))}")
+
     jira_org, jira_repo = args.jira.split('/')
     zenhub_org, zenhub_repo = args.zenhub.split('/')
 
     if args.open_only or args.zenhub_issues:  # Only syncing a subset of issues that is defined in ZenHub
         # Get all ZenHub issues that match the filter - are open or are in a given list
         zenhub = ZenHubRepo(repo_name=zenhub_repo, org=zenhub_org, issues=args.zenhub_issues, open_only=args.open_only)
-        jira = JiraRepo(repo_name=jira_repo, jira_org=jira_org, jql='issues in ()')  # Make a JiraRepo with no issues
+        jira = JiraRepo(repo_name=jira_repo, jira_org=jira_org, empty=True)  # Make a JiraRepo with no issues
         for issue in zenhub.issues.values():  # Then add in each issue that has a match in the ZenHub subset
             jira.issues[issue.jira_key] = JiraIssue(repo=jira, key=issue.jira_key)
 
@@ -80,6 +91,7 @@ def run_synchronization(args):
         Sync.sync_board(source=zenhub, sink=jira)
     else:
         pass  # replace with mirror sync when other pr is merged
+    logger.info("Synchronization finished")
 
 
 if __name__ == '__main__':

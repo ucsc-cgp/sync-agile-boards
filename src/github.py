@@ -7,6 +7,8 @@ import requests
 from src.access import get_access_params
 from src.issue import Issue, Repo
 
+logger = logging.getLogger(__name__)
+
 
 class GitHubRepo(Repo):
 
@@ -18,7 +20,6 @@ class GitHubRepo(Repo):
 
         self.name = repo_name
         self.org = org
-        self.issues = dict()
 
         if updated_since:  # format the datetime object to use as a search filter
             timestamp_filter = f'+updated:>={updated_since.strftime("%Y-%m-%dT%H:%M:%SZ")}'
@@ -47,7 +48,6 @@ class GitHubIssue(Issue):
         :param content: If specified, don't make a new API call but use this response from an earlier one
         """
         super().__init__()
-
         self.repo = repo
 
         if not content:
@@ -57,7 +57,7 @@ class GitHubIssue(Issue):
                 raise ValueError('No issue matching this id and repo was found')
 
         self.description = content['body']
-        self.github_key = content['number']
+        self.github_key = str(content['number'])
         self.jira_key = self.get_jira_equivalent()
         self.summary = content['title']
 

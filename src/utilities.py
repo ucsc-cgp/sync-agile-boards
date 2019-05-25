@@ -12,20 +12,6 @@ from settings import urls
 logger = logging.getLogger(__name__)
 
 
-def get_repo_id(repo_name, org_name):
-    url = _get_repo_url(repo_name, org_name)
-    headers = {'Authorization': 'token ' + get_access_params('github')['api_token']}
-    response = requests.get(url, headers=headers)
-
-    repo_id_dict = {'status_code': response.status_code}
-    if response.status_code == 200:
-        response_json = response.json()
-        repo_id_dict['repo_id'] = response_json['id']
-    else:
-        repo_id_dict['repo_id'] = response.text
-    return repo_id_dict
-
-
 def check_for_git_config(git_config_file):
     """
     User must have ~/.gitconfig in home directory in order to use this function.

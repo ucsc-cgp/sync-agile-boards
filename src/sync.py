@@ -1,7 +1,5 @@
 import logging
-import shlex
 import time
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -12,19 +10,19 @@ class Sync:
         - Each issue has a counterpart in each management system
         - Each issue's description says the name of the issue it's linked with"""
     @staticmethod
-    def sync_board(source: 'Board', sink: 'Board'):
+    def sync_board(source: 'Repo', sink: 'Repo'):
 
         if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
             for key, issue in source.issues.items():
                 try:
                     if issue.jira_key:
-                        logging.info(f'syncing {issue.jira_key} from {key}')
+                        logging.info(f'Syncing from {source.name} issue {key} to issue {issue.jira_key}')
                         Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
                     else:
-                        logging.warning(f'Issue {key} has no Jira link information. Skipping this issue')
+                        logging.warning(f'Skipping issue {key}: no Jira link found')
 
                 except RuntimeError as e:
-                    logging.warning(repr(e) + f'Failed to sync issue {key}. Skipping this issue')
+                    logging.warning(f'Skipping issue {key}: {repr(e)}')
 
                 except KeyError as e:
                     logging.warning(repr(e) + f'Skipping this issue - matching issue in Jira not found')
@@ -34,10 +32,10 @@ class Sync:
                 for i in range(3):  # Allow for 3 tries
                     try:
                         if issue.github_key:
-                            logging.info(f'syncing {issue.github_key} from {key}')
+                            logging.info(f'Syncing from issue {key} to {sink.name} issue {issue.github_key}')
                             Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
                         else:
-                            logging.warning(f'Issue {key} has no GitHub link information. Skipping this issue')
+                            logging.warning(f'Skipping issue {key}: no GitHub link found')
                         break
 
                     except RuntimeError as e:
@@ -72,15 +70,15 @@ class Sync:
     def sync_from_most_current(a: 'Issue', b: 'Issue'):
 
         if a.updated > b.updated:  # a is the most current
-            logging.info(f'syncing {b} (updated at {b.updated}) from {a} (updated at {a.updated})')
+            logging.info(f'Syncing {b} (updated at {b.updated}) from {a} (updated at {a.updated})')
             Sync.sync_from_specified_source(a, b)  # use a as the source
         else:
-            logging.info(f'syncing {a} (updated at {a.updated}) from {b} (updated at {b.updated})')
+            logging.info(f'Syncing {a} (updated at {a.updated}) from {b} (updated at {b.updated})')
             Sync.sync_from_specified_source(b, a)
 
     @staticmethod
     def sync_epics(source: 'Issue', sink: 'Issue'):
-
+        logger.info('This is an epic. Synchronizing epic membership of all its issues...')
         # Get lists of epic children
         source_children = source.get_epic_children()
         sink_children = sink.get_epic_children()
@@ -92,7 +90,7 @@ class Sync:
             if issue in source.repo.issues:  # information for:
                 source_child = source.repo.issues[str(issue)]             # If so, get the Issue object by its key
             else:
-                logging.info(f'getting information for issue {issue}')
+                logging.info(f'No information for {issue}. Getting information to update epic membership')
                 source_child = type(source)(key=issue, repo=source.repo)  # If not, make a new Issue object for it
 
             if source_child.__class__.__name__ == 'ZenHubIssue':  # Get the key of the same issue in the opposite

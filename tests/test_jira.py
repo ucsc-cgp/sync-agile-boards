@@ -128,20 +128,6 @@ class TestJiraIssue(unittest.TestCase):
         self.assertEqual(self.j.github_key, '25')
         self.assertEqual(self.j.github_repo, 'abc')
 
-    def test_dict_format(self):
-        d = self.j.dict_format()
-        expected_result = {
-            'fields': {
-                'assignee': {'name': 'aaaaa'},
-                'description': 'test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
-                               '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 25{color}\n',
-                'summary': 'Test 1',
-                'issuetype': {'name': 'Story'},
-                'customfield_10014': 7.0
-            }
-        }
-        self.assertEqual(d, expected_result)
-
     def test_update_from(self):
         self.k.update_from(self.j)
         # self.assertEqual(self.k.assignees, ['aaaaa'])
