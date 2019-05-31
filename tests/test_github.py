@@ -75,7 +75,7 @@ class TestGitHubIssue(unittest.TestCase):
         self.assertEqual(self.g.issue_type, None)
         self.assertEqual(self.g.story_points, None)
         self.assertEqual(self.g.created, datetime.datetime(2019, 2, 20, 22, 51, 33, tzinfo=pytz.timezone('UTC')))
-        self.assertEqual(self.g.github_key, 100)
+        self.assertEqual(self.g.github_key, '100')
         self.assertEqual(self.g.repo.name, 'REPO')
         self.assertEqual(self.g.repo.org, 'SOME_ORG')
 
@@ -88,7 +88,7 @@ class TestGitHubIssue(unittest.TestCase):
         with self.assertRaises(ValueError):
             GitHubIssue(key='NONEXISTENT-ISSUE', repo=self.github_repo)
 
-    def test_get_github_equivalent(self):
+    def test_get_jira_equivalent(self):
         self.assertEqual(self.g.get_jira_equivalent(), 'ABC-10')
 
     def test_no_issue_key_in_description(self):

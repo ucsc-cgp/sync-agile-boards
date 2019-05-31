@@ -18,7 +18,7 @@ def mocked_response(*args, **kwargs):
             return self.json_data
 
     # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
-    if args == ('https://mock-org.atlassian.net/search?jql=id=ISSUE-WITH-BLANKS',):
+    if args == ('https://mock-org.atlassian.net/search?jql=project=TEST AND issuekey=ISSUE-WITH-BLANKS&startAt=0',):
         return MockResponse(
         {'issues':  # A condensed API response for an issue
             [{'fields': {
@@ -33,7 +33,9 @@ def mocked_response(*args, **kwargs):
                 'summary': 'Test 3',
                 'updated': '2019-02-20T14:34:08.870-0800'},
             'id': '15546',
-            'key': 'ISSUE-WITH-BLANKS'}]})
+            'key': 'ISSUE-WITH-BLANKS'}],
+          'total': 1,
+          'maxResults': 50})
 
     elif args == ('https://mock-org.atlassian.net/search?jql=id=NONEXISTENT-ISSUE',):
         return MockResponse(
@@ -104,7 +106,7 @@ class TestJiraIssue(unittest.TestCase):
         cls.k = cls.board.issues['REAL-ISSUE-2']
 
         # Initialize a board by specifying one issue of interest
-        cls.another_board = JiraRepo(repo_name='TEST', jira_org='org', issues=['ISSUE-WITH-BLANKS'])
+        cls.another_board = JiraRepo(repo_name='TEST', jira_org='org', jql='issuekey=ISSUE-WITH-BLANKS')
         cls.l = cls.another_board.issues['ISSUE-WITH-BLANKS']
 
     def test_happy_init(self):
@@ -125,20 +127,6 @@ class TestJiraIssue(unittest.TestCase):
         self.j.get_github_equivalent()
         self.assertEqual(self.j.github_key, '25')
         self.assertEqual(self.j.github_repo, 'abc')
-
-    def test_dict_format(self):
-        d = self.j.dict_format()
-        expected_result = {
-            'fields': {
-                'assignee': {'name': 'aaaaa'},
-                'description': 'test ticket\n\n┆{color:#707070}Issue is synchronized with a [GitHub issue\n'
-                               '┆{color:#707070}Repository Name: abc{color}\n┆{color:#707070}Issue Number: 25{color}\n',
-                'summary': 'Test 1',
-                'issuetype': {'name': 'Story'},
-                'customfield_10014': 7.0
-            }
-        }
-        self.assertEqual(d, expected_result)
 
     def test_update_from(self):
         self.k.update_from(self.j)

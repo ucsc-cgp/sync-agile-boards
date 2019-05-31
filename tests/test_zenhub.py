@@ -85,12 +85,10 @@ def mocked_response(*args, **kwargs):
 class TestZenHub(unittest.TestCase):
 
     def setUp(self):
-        self.patch_repo_id = patch('src.zenhub.ZenHubRepo.get_repo_id', return_value='123456789')
-        self.patch_requests = patch('requests.get', side_effect=mocked_response)
-        self.patch_token = patch('src.access._get_token', return_value='99999999')
-        for p in [self.patch_repo_id, self.patch_requests, self.patch_token]:
-            p.start()
-            self.addCleanup(p.stop)
+        self.patch_repo_id = patch('src.zenhub.ZenHubRepo.get_repo_id', return_value='123456789').start()
+        self.patch_requests = patch('requests.get', side_effect=mocked_response).start()
+        self.patch_token = patch('src.access._get_token', return_value='99999999').start()
+        self.github_patch = patch('src.github.requests.patch', side_effect=mocked_response).start()
 
         self.board = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['42'])
         self.zen = self.board.issues['42']
@@ -163,6 +161,9 @@ class TestZenHub(unittest.TestCase):
         """Test that get_most_recent_event() gets a correct datetime object from a list of events"""
         expected = datetime.datetime(2019, 5, 8, 22, 13, 43, tzinfo=pytz.timezone('UTC'))
         self.assertEqual(self.zen.get_most_recent_event(), expected)
+
+    def tearDown(self):
+        patch.stopall()  # Stop all patches started in setUp()
 
 
 if __name__ == '__main__':

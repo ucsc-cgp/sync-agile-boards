@@ -348,10 +348,11 @@ def mock_response(url, *args, **kwargs):
                                            {'id': '500', 'name': 'Epics'},
                                            {'id': '600', 'name': 'Review/QA'},
                                            {'id': '700', 'name': 'Done'}]})
+
     # Mock Jira issue information
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-1':
-        return MockResponse({'issues': [{
-            'fields': {
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=project=TEST&startAt=0':
+        return MockResponse({'issues': [
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -367,11 +368,8 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'In Progress'},
                 'summary': 'a test',
                 'updated': '2019-05-11T14:34:08.870-0800'},
-            'key': 'TEST-1'}]})
-
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-2':
-        return MockResponse({'issues': [{
-            'fields': {
+             'key': 'TEST-1'},
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -386,11 +384,8 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'In Review'},
                 'summary': 'Test 2',
                 'updated': '2019-04-21T15:55:08.870-0800'},
-            'key': 'TEST-2'}]})
-
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-3':
-        return MockResponse({'issues': [{
-            'fields': {
+             'key': 'TEST-2'},
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -405,11 +400,8 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'Done'},
                 'summary': 'Test 3',
                 'updated': '2019-02-20T14:34:08.870-0800'},
-            'key': 'TEST-3'}]})
-
-    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=TEST-4':
-        return MockResponse({'issues': [{
-            'fields': {
+             'key': 'TEST-3'},
+            {'fields': {
                 'assignee': None,
                 'created': '2019-02-05T14:52:11.501-0800',
                 'customfield_10008': None,
@@ -423,7 +415,9 @@ def mock_response(url, *args, **kwargs):
                 'status': {'name': 'In Progress'},
                 'summary': 'Test 4',
                 'updated': '2019-02-20T14:34:08.870-0800'},
-            'key': 'TEST-4'}]})
+             'key': 'TEST-4'}],
+        'total': 4,
+        'maxResults': 50})
 
     elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=JIRA-5':
         return MockResponse(JIRA_5)
@@ -516,6 +510,7 @@ class TestSync(unittest.TestCase):
         self.jira_post = patch('src.jira.requests.post', side_effect=mock_response).start()
         self.zenhub_put = patch('src.zenhub.requests.put', side_effect=mock_response).start()
         self.zenhub_post = patch('src.zenhub.requests.post', side_effect=mock_response).start()
+        self.github_patch = patch('src.github.requests.patch', side_effect=mock_response).start()
 
         self.patch_requests = patch('requests.get', side_effect=mock_response).start()
         self.patch_token = patch('src.access._get_token', return_value='token').start()
@@ -523,7 +518,7 @@ class TestSync(unittest.TestCase):
         self.ZENHUB_REPO = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['1', '2', '3', '4'])
         self.ZENHUB_ISSUE_1 = self.ZENHUB_REPO.issues['1']
 
-        self.JIRA_REPO = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-1', 'TEST-2', 'TEST-3', 'TEST-4'])
+        self.JIRA_REPO = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl')
         self.JIRA_ISSUE_1 = self.JIRA_REPO.issues['TEST-1']
 
     def tearDown(self):
@@ -537,8 +532,8 @@ class TestSync(unittest.TestCase):
     def test_sync_epics(self, jira_children, zen_children, repo_id, change_zen_epic, change_jira_epic):
         """Test the sync_epics method in isolation"""
 
-        j_epic = JiraIssue(repo=self.JIRA_REPO, key='TEST-2')
-        z_epic = ZenHubIssue(repo=self.ZENHUB_REPO, key='2')
+        j_epic = self.JIRA_REPO.issues['TEST-2']
+        z_epic = self.ZENHUB_REPO.issues['2']
 
         Sync.sync_epics(j_epic, z_epic)  # test syncing from Jira to ZenHub
         self.assertEqual(change_zen_epic.call_args_list, [call(add='1'), call(remove='4')])
@@ -559,25 +554,12 @@ class TestSync(unittest.TestCase):
         # TEST-1 is updated
         self.assertEqual(jira_post.call_args_list[0][1]['json'], {'transition': {'id': 61}})  # TEST-1 to new issue
         self.assertEqual(jira_put.call_args_list[0][1]['json'],
-                         {'fields': {'description': 'Issue Number: TEST-1┆{color:#707070}Issue is synchronized with a [GitHub '
-                                                    'issue|https://github.com/ucsc-cgp/abc/issues/1]{color}\n'
-                                                    '┆{color:#707070}Repository Name: abc{color}\n'
-                                                    '┆{color:#707070}Milestone: testsprint1{color}\n'
-                                                    '┆{color:#707070}Issue Number: 1{color}',
-                                     'issuetype': {'name': 'Story'},
-                                     'summary': 'a test'}})
+                         {'fields': {'customfield_10014': None}})
 
         # TEST-2 is updated
         self.assertEqual(jira_post.call_args_list[1][1]['json'], {'transition': {'id': 21}})
         self.assertEqual(jira_put.call_args_list[1][1]['json'],
-                         {'fields': {'description': 'Issue Number: TEST-2┆{color:#707070}Issue is synchronized with a [GitHub '
-                                                    'issue|https://github.com/ucsc-cgp/abc/issues/2]{color}\n'
-                                                    '┆{color:#707070}Repository Name: abc{color}\n'
-                                                    '┆{color:#707070}Milestone: testsprint1{color}\n'
-                                                    '┆{color:#707070}Issue Number: 2{color}',
-                                     'issuetype': {'name': 'Epic'},
-                                     'summary': 'Test 2',
-                                     'customfield_10014': 5}})
+                         {'fields': {'customfield_10014': 5}})
 
         # TEST-1 and TEST-3 are added to epic TEST-2
         self.assertEqual(jira_post.call_args_list[2][1]['json'], {'issues': ['TEST-1']})
@@ -586,30 +568,16 @@ class TestSync(unittest.TestCase):
         # TEST-3 is updated to Story, causing TEST-2 and TEST-4 to no longer be its children
         self.assertEqual(jira_post.call_args_list[4][1]['json'], {'transition': {'id': 41}})
         self.assertEqual(jira_put.call_args_list[2][1]['json'],
-                         {'fields': {'description': 'Issue Number: TEST-3┆{color:#707070}Issue is synchronized with a [GitHub '
-                                                    'issue|https://github.com/ucsc-cgp/abc/issues/3]{color}\n'
-                                                    '┆{color:#707070}Repository Name: abc{color}\n'
-                                                    '┆{color:#707070}Milestone: testsprint1{color}\n'
-                                                    '┆{color:#707070}Issue Number: 3{color}',
-                                     'issuetype': {'name': 'Story'},
-                                     'summary': 'Test 3',
-                                     'customfield_10014': 2}})
+                         {'fields': {'customfield_10014': 2}})
 
         # TEST-4 is updated
         self.assertEqual(jira_post.call_args_list[5][1]['json'], {'transition': {'id': 21}})
         self.assertEqual(jira_put.call_args_list[3][1]['json'],
-                         {'fields': {'description': 'Issue Number: TEST-4┆{color:#707070}Issue is synchronized with a [GitHub '
-                                                    'issue|https://github.com/ucsc-cgp/abc/issues/4]{color}\n'
-                                                    '┆{color:#707070}Repository Name: abc{color}\n'
-                                                    '┆{color:#707070}Issue Number: 4{color}',
-                                     'issuetype': {'name': 'Story'},
-                                     'summary': 'Test 4',
-                                     'customfield_10014': 2}})
+                         {'fields': {'customfield_10014': 2}})
 
-    @patch('src.github.requests.patch', side_effect=mock_response)
     @patch('src.zenhub.requests.put', side_effect=mock_response)
     @patch('src.zenhub.requests.post', side_effect=mock_response)
-    def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put, github_patch):
+    def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put):
         """Test syncing a repo from Jira to ZenHub.
         Assert that API calls are made in the correct order with correct data."""
 
@@ -618,30 +586,17 @@ class TestSync(unittest.TestCase):
         # 1 is updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[0][1]['json'], {'pipeline_id': '200', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[0][1]['json'], {'estimate': 0})
-        self.assertEqual(github_patch.call_args_list[0][1]['json'], {'title': 'a test',
-                                                                     'body': 'Issue Number: TEST-1┆{color:#707070}Repository Name: abc{color}\n'
-                                                                             '┆{color:#707070}Milestone: testsprint1{color}\n'
-                                                                             '┆{color:#707070}Issue Number: 1{color}',
-                                                                     'labels': []})
 
         # 2 is converted to issue and updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[1][1]['json'], {'issues': [{'repo_id': '123', 'issue_number': '2'}]})
         self.assertEqual(zenhub_post.call_args_list[2][1]['json'], {'pipeline_id': '600', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[1][1]['json'], {'estimate': 2.0})
-        self.assertEqual(github_patch.call_args_list[1][1]['json'], {'title': 'Test 2',
-                                                                     'body': 'Issue Number: TEST-2┆{color:#707070}Repository Name: abc{color}\n'
-                                                                             '┆{color:#707070}Milestone: testsprint1{color}\n'
-                                                                             '┆{color:#707070}Issue Number: 2{color}',
-                                                                     'labels': []})
+
         # 3 is converted to epic and updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[3][1]['json'], {'issues': [{'repo_id': '123', 'issue_number': '3'}]})
         self.assertEqual(zenhub_post.call_args_list[4][1]['json'], {'pipeline_id': '700', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[2][1]['json'], {'estimate': 3.0})
-        self.assertEqual(github_patch.call_args_list[2][1]['json'], {'title': 'Test 3',
-                                                                     'body': 'Issue Number: TEST-3┆{color:#707070}Repository Name: abc{color}\n'
-                                                                             '┆{color:#707070}Milestone: testsprint1{color}\n'
-                                                                             '┆{color:#707070}Issue Number: 3{color}',
-                                                                     'labels': []})
+
         # 2 and 4 are added to epic 3 through ZenHub
         self.assertEqual(zenhub_post.call_args_list[5][1]['json'], {'add_issues': [{'repo_id': 123, 'issue_number': 2}]})
         self.assertEqual(zenhub_post.call_args_list[6][1]['json'], {'add_issues': [{'repo_id': 123, 'issue_number': 4}]})
@@ -649,10 +604,6 @@ class TestSync(unittest.TestCase):
         # 4 is updated in ZenHub and GitHub
         self.assertEqual(zenhub_post.call_args_list[7][1]['json'], {'pipeline_id': '200', 'position': 'top'})
         self.assertEqual(zenhub_put.call_args_list[3][1]['json'], {'estimate': 4.0})
-        self.assertEqual(github_patch.call_args_list[3][1]['json'], {'title': 'Test 4',
-                                                                     'body': 'Issue Number: TEST-4┆{color:#707070}Repository Name: abc{color}\n'
-                                                                             '┆{color:#707070}Issue Number: 4{color}',
-                                                                     'labels': []})
 
     @patch('src.sync.Sync.sync_from_specified_source')
     def test_mirror_sync(self, sync):
@@ -674,29 +625,29 @@ class TestSync(unittest.TestCase):
             # No action required.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='5')
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-5')
-            assert zen.github_milestone == None
-            assert jira.github_milestone == None
+            assert zen.milestone_name == None
+            assert jira.milestone_name == None
             assert jira.jira_sprint_id == None
             Sync.sync_sprints(zen, jira)
-            self.assertTrue(zen.github_milestone is None)
+            self.assertTrue(zen.milestone_name is None)
             self.assertEqual(jira_post.call_args_list, [])
 
             # Zen issue is part of a milestone, and its title is same as the equivalent Jira story. Again, no action needed.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='6')
-            assert zen.github_milestone == 'testsprint1'
+            assert zen.milestone_name == 'testsprint1'
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-6')
-            assert jira.github_milestone == 'testsprint1'
+            assert jira.milestone_name == 'testsprint1'
             Sync.sync_sprints(zen, jira)
-            self.assertEqual(zen.github_milestone, 'testsprint1')
-            self.assertEqual(jira.github_milestone, 'testsprint1')
+            self.assertEqual(zen.milestone_name, 'testsprint1')
+            self.assertEqual(jira.milestone_name, 'testsprint1')
             self.assertEqual(jira_post.call_args_list, [])
 
             # Zen issue is part of a milestone, but corresponding Jira issue is not. Tests whether Jira issue has been added
             # to the Jira sprint of the equivalent name.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='7')
-            assert zen.github_milestone == 'testsprint1'
+            assert zen.milestone_name == 'testsprint1'
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-7')
-            assert jira.github_milestone == None
+            assert jira.milestone_name == None
             Sync.sync_sprints(zen, jira)
             self.assertEqual(jira.jira_sprint_id, 42)
             self.assertEqual(jira_post.mock_calls[0][1][0], 'https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/42/issue')
@@ -706,9 +657,9 @@ class TestSync(unittest.TestCase):
 
             # Zen issue is part of a milestone, but no corresponding sprint with the milestone title exists in Jira.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='8')
-            assert zen.github_milestone == 'testsprint2'
+            assert zen.milestone_name == 'testsprint2'
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-8')
-            assert jira.github_milestone == None
+            assert jira.milestone_name == None
             Sync.sync_sprints(zen, jira)
             self.assertEqual(jira.jira_sprint_id, None)
 

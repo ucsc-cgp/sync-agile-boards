@@ -1,25 +1,26 @@
 import datetime
+import logging
 from more_itertools import first
 import re
 import requests
-import logging
+from tqdm import tqdm
 
 from settings import transitions
 from src.access import get_access_params
 from src.issue import Repo, Issue
-from src.utilities import CrypticNames, get_zenhub_pipeline
+from src.utilities import CustomFieldNames, get_zenhub_pipeline
 
 logger = logging.getLogger(__name__)
 
 
 class JiraRepo(Repo):
 
-    def __init__(self, repo_name, jira_org, issues: list = None):
+    def __init__(self, repo_name: str, jira_org: str, jql: str = None, empty: bool = False):
         """Create a Project storing all issues belonging to the provided project key
         :param repo_name: Required. The repo to work with e.g. TEST
         :param jira_org: Required. The organization the repo belongs to, e.g. ucsc-cgl
-        :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
-        retrieve and update the listed issues.
+        :param jql: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
+        retrieve issues that match this Jira Query Language filter.
         """
 
         super().__init__()
@@ -29,18 +30,19 @@ class JiraRepo(Repo):
 
         self.name = repo_name
         self.org = jira_org
-        self.issues = dict()
 
-        if issues:
-            for issue in issues:
-                self.issues[issue] = JiraIssue(key=issue, repo=self)
+        if empty:
+            return
 
-        else:  # By default, get all issues
-            content = self.api_call(requests.get, f'search?jql=project={self.name}&startAt=', page=0)
-            for issue in content['issues']:
-                self.issues[issue['key']] = JiraIssue(content=issue, repo=self)
+        if jql:  # Add an 'AND' before the filter so it can be combined with the project filter
+            jql_filter = f' AND {jql}'
+        else:
+            jql_filter = ''  # otherwise do not filter
 
-        # self.github_org, self.github_repo = board_map[jira_org][repo]
+        # By default, get all issues
+        content = self.api_call(requests.get, f'search?jql=project={self.name}{jql_filter}&startAt=', page=0)
+        for issue in tqdm(content['issues'], desc='getting Jira issues'):  # progress bar
+            self.issues[issue['key']] = JiraIssue(content=issue, repo=self)
 
 
 class JiraIssue(Issue):
@@ -56,7 +58,6 @@ class JiraIssue(Issue):
         """
 
         super().__init__()
-
         self.repo = repo
 
         if key:
@@ -67,9 +68,6 @@ class JiraIssue(Issue):
             else:
                 raise ValueError('No issue matching this id was found')
 
-        if content['fields']['assignee']:
-            self.assignees = [content['fields']['assignee']['name']]
-        self.created = datetime.datetime.strptime(content['fields']['created'].split('.')[0], '%Y-%m-%dT%H:%M:%S')
         self.description = content['fields']['description']
         self.issue_type = content['fields']['issuetype']['name']
         self.jira_key = content['key']
@@ -86,26 +84,28 @@ class JiraIssue(Issue):
         # self.github_repo, self.github_key = self.get_github_equivalent() or (None, None)
         self.get_github_equivalent()
 
-        if CrypticNames.story_points in content['fields'].keys():
-            self.story_points = content['fields'][CrypticNames.story_points]
+        if CustomFieldNames.story_points in content['fields'].keys():
+            self.story_points = content['fields'][CustomFieldNames.story_points]
 
-        if CrypticNames.sprint in content['fields']:  # This custom field holds sprint information
-            if content['fields'][CrypticNames.sprint]:
+        if CustomFieldNames.sprint in content['fields']:  # This custom field holds sprint information
+            if content['fields'][CustomFieldNames.sprint]:
                 # This field is a list containing a dictionary that's been put in string format.
                 # Sprints can have duplicate names. id is the unique identifier used by the API.
 
-                sprint_info = first(content['fields'][CrypticNames.sprint])
+                sprint_info = first(content['fields'][CustomFieldNames.sprint])
 
-                match_obj = re.search(r'id=(\w*),', sprint_info)
+                match_obj = re.search(r'id=(\w*),.*name=([\w-]*),', sprint_info)
                 if match_obj:
                     self.jira_sprint_id = int(match_obj.group(1))
-                    logger.info(f'No sprint ID was found in {CrypticNames.sprint}'
+                    self.jira_sprint_name = match_obj.group(2)
+                else:
+                    logger.info(f'No sprint ID was found in {CustomFieldNames.sprint}'
                                 ' - trying different way to find sprint ID...')
 
         self.pipeline = get_zenhub_pipeline(self)  # This must be done after sprint status is set
 
     @staticmethod
-    def get_utc_offset(timestamp):
+    def get_utc_offset(timestamp: str):
         """Return a timezone object representing the UTC offset found in the timestamp"""
         offset_direction = timestamp[-5]  # A plus or minus sign
         offset_hours = int(timestamp[-4:-2])
@@ -123,57 +123,41 @@ class JiraIssue(Issue):
             match_obj3 = re.search(r'(?<=Milestone: )(.*?)(?={color})', self.description)
             match_obj4 = re.search(r'(?<=github.com/)(.*?)(?=/)', self.description)
             if not any([match_obj1, match_obj2, match_obj3, match_obj4]):
-                print('No match was found in the description.')
+                logging.warning(f'No GitHub link information was found in the description of issue {self.jira_key}')
             self.github_repo = match_obj1.group(0) if match_obj1 else None
             self.github_key = match_obj2.group(0) if match_obj2 else None
-            self.github_milestone = match_obj3.group(0) if match_obj3 else None
+            self.milestone_name = match_obj3.group(0) if match_obj3 else None
             self.github_org = match_obj4.group(0) if match_obj4 else None
-
-    def dict_format(self) -> dict:
-        """Describe this issue in a dictionary that can be posted to Jira"""
-
-        d = {
-            'fields': {  # these fields can be updated
-                'description': self.description,
-                'issuetype': {'name': self.issue_type},
-                'summary': self.summary
-            }
-        }
-
-        if self.story_points:
-            d['fields']['customfield_10014'] = self.story_points
-
-        if self.assignees:
-            d['fields']['assignee'] = {'name': self.assignees[0]}
-
-        if self.jira_sprint_id:
-            d['fields']['customfield_10010'] = self.jira_sprint_id
-
-        return d
 
     def update_remote(self):
         """Update the remote issue. The issue must already exist in Jira."""
 
-        transition = {'transition': {'id': transitions[self.status]}}
-
+        logger.debug(f'Updating Jira issue {self.jira_key} status to {self.status}')
         # Issue status has to be updated as a transition
+        transition = {'transition': {'id': transitions[self.status]}}
         self.repo.api_call(requests.post, f'issue/{self.jira_key}/transitions', json=transition, success_code=204)
 
+        logger.debug(f'Updating Jira issue {self.jira_key} story points to {self.story_points}')
         # Issue assignee, description, summary, and story points fields can be updated from a dictionary
-        self.repo.api_call(requests.put, f'issue/{self.jira_key}', json=self.dict_format(), success_code=204)
+        try:
+            self.repo.api_call(requests.put, f'issue/{self.jira_key}',
+                               json={'fields': {CustomFieldNames.story_points: self.story_points}}, success_code=204)
+        except RuntimeError as e:
+            logger.warning(f'{repr(e)} error updating issue {self.jira_key} story points. Check that the issue is not a task')
 
     def change_epic_membership(self, add: str = None, remove: str = None):
         """Add or remove given issue from this epic (self). Specify one issue to add or remove as a kwarg"""
 
         if add and not remove:
+            logger.debug(f'Adding Jira issue {add} to epic {self.jira_key}')
             epic_name = self.jira_key
         elif remove and not add:
+            logger.debug(f'Removing Jira issue {remove} from epic {self.jira_key}')
             epic_name = 'none'
         else:
             raise RuntimeError('change_epic_membership must be called with exactly one argument')
 
         issues = {'issues': [add or remove]}
-
         self.repo.api_call(requests.post, url_head=first(self.repo.url.split('api')),
                            url_tail=f'agile/1.0/epic/{epic_name}/issue', json=issues, success_code=204)
 
@@ -183,27 +167,30 @@ class JiraIssue(Issue):
         children = [i['key'] for i in self.repo.api_call(requests.get, f"search?jql=cf[10008]='{self.jira_key}'")['issues']]
         return children
 
-    def add_to_sprint(self):
-        url = self.repo.alt_url + f'sprint/{self.jira_sprint_id}/issue'
-        response = requests.post(url, headers=self.repo.headers, json={'issues': [self.jira_key]})
-        if response.status_code != 204:  # HTTP 204 is OK
-            logger.warning(f'{response.status_code}: '
-                           f'Sync sprint: Error adding {self.jira_key} to '
-                           f'sprint {self.jira_sprint_id}: {response.text}')
+    def add_to_sprint(self, sprint_id: str):
+        """Post this issue to the sprint with given ID"""
+        logger.debug(f'Adding Jira issue {self.jira_key} to sprint {sprint_id}')
+        self.repo.api_call(requests.post, f'sprint/{sprint_id}/issue', url_head=self.repo.alt_url,
+                           json={'issues': [self.jira_key]}, success_code=204)
 
-    def _get_sprint_id(self, sprint_title: str):
-        base_url = self.repo.url
-        url = base_url + f'search?jql=sprint="{sprint_title}"'
-        response = requests.get(url, headers=self.repo.headers)
-        if response.status_code == 200:
-            data = response.json()['issues'][0]['fields']['customfield_10010']
+    def remove_from_sprint(self):
+        logger.debug(f'Removing Jira issue {self.jira_key} from sprint {self.jira_sprint_name}')
+        self.repo.api_call(requests.put, f'issue/{self.jira_key}',
+                           json={'fields': {CustomFieldNames.sprint: None}}, success_code=204)
+
+    def get_sprint_id(self, sprint_title: str):
+
+        url = f'search?jql=sprint="{sprint_title}"'
+        try:
+            content = self.repo.api_call(requests.get, url)
+            data = content['issues'][0]['fields']['customfield_10010']
             # The following attempts to extract the sprint ID from a string wrapped in a list, which contains one "["
             # character. It is very cryptic. Please see test in for Sync class for an example of "data".
             sprint_info = data[0].split('[')[1].split(',')
-            self.jira_sprint_id = int(re.search('\d+', sprint_info[0]).group(0))
+            jira_sprint_id = int(re.search(r'\d+', sprint_info[0]).group(0))
+
             logger.info(f'Sync sprint: Found sprint ID for sprint {sprint_title}')
-        return response.status_code
+            return jira_sprint_id
 
-
-if __name__ == '__main__':
-    j = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl', issues=['TEST-3'])
+        except RuntimeError:
+            return None

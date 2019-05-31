@@ -5,13 +5,6 @@ import os
 from pathlib import Path
 from settings import urls, url_mgmnt_sys, token_path
 
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s %(levelname)s %(message)s',
-                    filename=f'{ROOT_DIR}/sync-agile-boards.log',
-                    filemode='w')
-
 logger = logging.getLogger(__name__)
 
 
@@ -28,15 +21,15 @@ def get_access_params(mgmnt_sys):
         options = {'server': url_mgmnt_sys['jira_url'],
                    'alt_server': url_mgmnt_sys['jira_alt_url']}
         path_to_token = token_path['api_token_jira']
-        logging.info('Accessing Jira')
+        # logging.info('Accessing Jira')
     elif mgmnt_sys in ['zen', 'zenhub']:
         options = {'server': url_mgmnt_sys['zenhub_url']}
         path_to_token = token_path['api_token_zenhub']
-        logging.info('Accessing ZenHub')
+        # logging.info('Accessing ZenHub')
     elif mgmnt_sys in ['git', 'github']:
         options = {'server': urls['github_api']}
         path_to_token = token_path['api_token_github']
-        logging.info('Accessing GitHub')
+        # logging.info('Accessing GitHub')
     else:
         raise ValueError(f'{mgmnt_sys} not a valid input.')
 
