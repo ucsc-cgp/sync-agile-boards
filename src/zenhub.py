@@ -4,6 +4,7 @@ import logging
 import pytz
 import requests
 import sys
+from tqdm import tqdm
 
 from src.access import get_access_params
 from src.issue import Repo, Issue
@@ -37,7 +38,7 @@ class ZenHubRepo(Repo):
         self.github_equivalent = GitHubRepo(repo_name=self.name, org=self.org, issues=[])
 
         if issues is not None:  # Only get information for a subset of issues
-            for i in issues:
+            for i in tqdm(issues, desc='getting ZenHub issues'):  # progress bar
                 self.issues[i] = ZenHubIssue(repo=self, key=i)
 
         elif open_only:
@@ -52,14 +53,14 @@ class ZenHubRepo(Repo):
         # GitHub's API will return all issues in a repo, open or closed
         # So GitHub is used here to get a list of all issues. Then the ZenHub API is asked about each one individually.
         g = GitHubRepo(repo_name=self.name, org=self.org)
-        for key, issue in g.issues.items():
+        for key, issue in tqdm(g.issues.items(), desc='getting ZenHub issues'):  # progress bar
             self.issues[key] = ZenHubIssue(key=key, repo=self)
 
     def get_open_issues(self):
         """Retrieve all open issues in this repo thru the ZenHub API"""
 
         content = self.api_call(requests.get, f'{self.id}/board')
-        for pipeline in content['pipelines']:
+        for pipeline in tqdm(content['pipelines'], desc='getting ZenHub issues by pipeline'):  # progress bar, only shows number of pipelines not number of issues
             for issue in pipeline['issues']:
                 issue['pipeline'] = {'name': pipeline['name']}  # Add in the pipeline info to the sub-dictionary
                 self.issues[str(issue['issue_number'])] = ZenHubIssue(repo=self, content=issue)
@@ -107,7 +108,7 @@ class ZenHubIssue(Issue):
         if 'pipeline' in content:
             self.pipeline = content['pipeline']['name']
         else:
-            self.pipeline = 'Closed'  # TODO is this the only case in which the pipeline is not labelled?
+            self.pipeline = 'Closed'
 
         if content['is_epic'] is True:
             self.issue_type = 'Epic'
@@ -145,6 +146,9 @@ class ZenHubIssue(Issue):
 
         logger.debug(f'Updating ZenHub issue {self.github_key} pipeline to {self.pipeline}')
         if self.pipeline in self.repo.pipeline_ids:
+            if self.pipeline != 'Closed':  # Moving between pipelines doesn't work if the issue is closed
+                self.github_equivalent.open()
+
             json_dict = {'pipeline_id': self.repo.pipeline_ids[self.pipeline], 'position': 'top'}
             self.repo.api_call(requests.post, f'{self.repo.id}/issues/{self.github_key}/moves', json=json_dict)
 
@@ -198,3 +202,12 @@ class ZenHubIssue(Issue):
                                                                   '%Y-%m-%dT%H:%M:%S'))
         else:  # This issue has no events. Return the minimum datetime value so the GitHub timestamp will always be used
             return default_tz.localize(datetime.datetime.min)
+
+    def add_to_milestone(self, milestone_id):
+        self.github_equivalent.add_to_milestone(milestone_id)
+
+    def remove_from_milestone(self):
+        self.github_equivalent.remove_from_milestone()
+
+    def get_milestone_id(self, milestone_name: str) -> int:
+        return self.github_equivalent.get_milestone_id(milestone_name)

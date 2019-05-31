@@ -510,6 +510,7 @@ class TestSync(unittest.TestCase):
         self.jira_post = patch('src.jira.requests.post', side_effect=mock_response).start()
         self.zenhub_put = patch('src.zenhub.requests.put', side_effect=mock_response).start()
         self.zenhub_post = patch('src.zenhub.requests.post', side_effect=mock_response).start()
+        self.github_patch = patch('src.github.requests.patch', side_effect=mock_response).start()
 
         self.patch_requests = patch('requests.get', side_effect=mock_response).start()
         self.patch_token = patch('src.access._get_token', return_value='token').start()
@@ -624,29 +625,29 @@ class TestSync(unittest.TestCase):
             # No action required.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='5')
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-5')
-            assert zen.github_milestone == None
-            assert jira.github_milestone == None
+            assert zen.milestone_name == None
+            assert jira.milestone_name == None
             assert jira.jira_sprint_id == None
             Sync.sync_sprints(zen, jira)
-            self.assertTrue(zen.github_milestone is None)
+            self.assertTrue(zen.milestone_name is None)
             self.assertEqual(jira_post.call_args_list, [])
 
             # Zen issue is part of a milestone, and its title is same as the equivalent Jira story. Again, no action needed.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='6')
-            assert zen.github_milestone == 'testsprint1'
+            assert zen.milestone_name == 'testsprint1'
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-6')
-            assert jira.github_milestone == 'testsprint1'
+            assert jira.milestone_name == 'testsprint1'
             Sync.sync_sprints(zen, jira)
-            self.assertEqual(zen.github_milestone, 'testsprint1')
-            self.assertEqual(jira.github_milestone, 'testsprint1')
+            self.assertEqual(zen.milestone_name, 'testsprint1')
+            self.assertEqual(jira.milestone_name, 'testsprint1')
             self.assertEqual(jira_post.call_args_list, [])
 
             # Zen issue is part of a milestone, but corresponding Jira issue is not. Tests whether Jira issue has been added
             # to the Jira sprint of the equivalent name.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='7')
-            assert zen.github_milestone == 'testsprint1'
+            assert zen.milestone_name == 'testsprint1'
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-7')
-            assert jira.github_milestone == None
+            assert jira.milestone_name == None
             Sync.sync_sprints(zen, jira)
             self.assertEqual(jira.jira_sprint_id, 42)
             self.assertEqual(jira_post.mock_calls[0][1][0], 'https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/42/issue')
@@ -656,9 +657,9 @@ class TestSync(unittest.TestCase):
 
             # Zen issue is part of a milestone, but no corresponding sprint with the milestone title exists in Jira.
             zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='8')
-            assert zen.github_milestone == 'testsprint2'
+            assert zen.milestone_name == 'testsprint2'
             jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-8')
-            assert jira.github_milestone == None
+            assert jira.milestone_name == None
             Sync.sync_sprints(zen, jira)
             self.assertEqual(jira.jira_sprint_id, None)
 

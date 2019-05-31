@@ -88,7 +88,7 @@ class TestGitHubIssue(unittest.TestCase):
         with self.assertRaises(ValueError):
             GitHubIssue(key='NONEXISTENT-ISSUE', repo=self.github_repo)
 
-    def test_get_github_equivalent(self):
+    def test_get_jira_equivalent(self):
         self.assertEqual(self.g.get_jira_equivalent(), 'ABC-10')
 
     def test_no_issue_key_in_description(self):
