@@ -18,7 +18,7 @@ def mocked_response(*args, **kwargs):
             return self.json_data
 
     # Careful, args needs to be a tuple, and that always ends with a ',' character in Python!!
-    if args == ('https://mock-org.atlassian.net/search?jql=id=ISSUE-WITH-BLANKS',):
+    if args == ('https://mock-org.atlassian.net/search?jql=project=TEST AND issuekey=ISSUE-WITH-BLANKS&startAt=0',):
         return MockResponse(
         {'issues':  # A condensed API response for an issue
             [{'fields': {
@@ -33,7 +33,9 @@ def mocked_response(*args, **kwargs):
                 'summary': 'Test 3',
                 'updated': '2019-02-20T14:34:08.870-0800'},
             'id': '15546',
-            'key': 'ISSUE-WITH-BLANKS'}]})
+            'key': 'ISSUE-WITH-BLANKS'}],
+          'total': 1,
+          'maxResults': 50})
 
     elif args == ('https://mock-org.atlassian.net/search?jql=id=NONEXISTENT-ISSUE',):
         return MockResponse(
@@ -45,7 +47,7 @@ def mocked_response(*args, **kwargs):
 
     elif args == ('https://mock-org.atlassian.net/search?jql=project=TEST&startAt=0',):
         return MockResponse(
-            {'total': 1,
+            {'total': 2,
              'maxResults': 50,
              'issues':  # A condensed API response for all issues in a board
                 [{'fields': {
@@ -92,16 +94,19 @@ class TestJiraIssue(unittest.TestCase):
     @classmethod
     @patch('src.jira.get_access_params')
     @patch('src.jira.requests.get', side_effect=mocked_response)
-    def setUpClass(cls, get_mocked_response, get_mocked_token):
-        get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/'}, 'api_token': 'mock token'}
+    def setUp(cls, get_mocked_response, get_mocked_token):
+        get_mocked_token.return_value = {'options': {'server': 'https://mock-%s.atlassian.net/',
+                                                     'alt_server': 'https://mock-%s.atlassian.net/rest/agile/1.0/'},
+                                         'api_token': 'mock token'}
 
         # Initialize a board with all its issues
         cls.board = JiraRepo(repo_name='TEST', jira_org='org')
+        print(cls.board.issues)
         cls.j = cls.board.issues['REAL-ISSUE-1']
         cls.k = cls.board.issues['REAL-ISSUE-2']
 
         # Initialize a board by specifying one issue of interest
-        cls.another_board = JiraRepo(repo_name='TEST', jira_org='org', issues=['ISSUE-WITH-BLANKS'])
+        cls.another_board = JiraRepo(repo_name='TEST', jira_org='org', jql='issuekey=ISSUE-WITH-BLANKS')
         cls.l = cls.another_board.issues['ISSUE-WITH-BLANKS']
 
     def test_happy_init(self):
@@ -119,19 +124,12 @@ class TestJiraIssue(unittest.TestCase):
             JiraIssue(key='NONEXISTENT-ISSUE', repo=self.board)
 
     def test_get_github_equivalent(self):
-        self.assertEqual(self.j.get_github_equivalent(), ('abc', '25'))
+        self.j.get_github_equivalent()
+        self.assertEqual(self.j.github_key, '25')
+        self.assertEqual(self.j.github_repo, 'abc')
 
     def test_update_from(self):
         self.k.update_from(self.j)
         # self.assertEqual(self.k.assignees, ['aaaaa'])
         self.assertEqual(self.k.story_points, 7.0)
         self.assertEqual(self.k.status, 'Done')
-
-    def test_fill_in_blanks_from(self):
-        self.l.fill_in_blanks_from(self.j)
-        self.assertEqual(self.l.status, 'In Progress')
-        self.assertEqual(self.l.assignees, ['aaaaa'])
-        self.assertEqual(self.l.story_points, 7.0)
-
-
-

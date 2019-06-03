@@ -3,7 +3,7 @@ import pytz
 import unittest
 from unittest.mock import patch
 
-from src.github import GitHubIssue
+from src.github import GitHubIssue, GitHubRepo
 
 
 def mocked_response(*args, **kwargs):
@@ -12,6 +12,7 @@ def mocked_response(*args, **kwargs):
     class MockResponse:
         def __init__(self, json_data):
             self.json_data = json_data
+            self.status_code = 200
 
         def json(self):
             return self.json_data
@@ -64,8 +65,9 @@ class TestGitHubIssue(unittest.TestCase):
     def setUp(self, get_mocked_response, mock_access_params):
         mock_access_params.return_value = {'options': {'server': 'https://mockapi.github.com/repos/'},
                                          'api_token': 'mock token'}
-        self.g = GitHubIssue(key='REAL-ISSUE', org='SOME_ORG', repo='REPO')
-        self.h = GitHubIssue(key='REAL-ISSUE-2', org='SOME_ORG', repo='REPO')
+        self.github_repo = GitHubRepo(repo_name='REPO', org='SOME_ORG', issues=['REAL-ISSUE', 'REAL-ISSUE-2'])
+        self.g = self.github_repo.issues['REAL-ISSUE']
+        self.h = self.github_repo.issues['REAL-ISSUE-2']
 
     def test_happy_init(self):
         self.assertEqual(self.g.summary, 'Really an issue')
@@ -73,9 +75,9 @@ class TestGitHubIssue(unittest.TestCase):
         self.assertEqual(self.g.issue_type, None)
         self.assertEqual(self.g.story_points, None)
         self.assertEqual(self.g.created, datetime.datetime(2019, 2, 20, 22, 51, 33, tzinfo=pytz.timezone('UTC')))
-        self.assertEqual(self.g.github_key, 100)
-        self.assertEqual(self.g.github_repo, 'REPO')
-        self.assertEqual(self.g.github_org, 'SOME_ORG')
+        self.assertEqual(self.g.github_key, '100')
+        self.assertEqual(self.g.repo.name, 'REPO')
+        self.assertEqual(self.g.repo.org, 'SOME_ORG')
 
     @patch('src.github.get_access_params')
     @patch('src.github.requests.get', side_effect=mocked_response)
@@ -84,9 +86,9 @@ class TestGitHubIssue(unittest.TestCase):
                                            'api_token': 'mock token'}
 
         with self.assertRaises(ValueError):
-            GitHubIssue(key='NONEXISTENT-ISSUE', repo='REPO', org='SOME_ORG')
+            GitHubIssue(key='NONEXISTENT-ISSUE', repo=self.github_repo)
 
-    def test_get_github_equivalent(self):
+    def test_get_jira_equivalent(self):
         self.assertEqual(self.g.get_jira_equivalent(), 'ABC-10')
 
     def test_no_issue_key_in_description(self):
