@@ -575,9 +575,10 @@ class TestSync(unittest.TestCase):
         self.assertEqual(jira_put.call_args_list[3][1]['json'],
                          {'fields': {'customfield_10014': 2}})
 
+    @patch('src.github.requests.patch', side_effect=mock_response)
     @patch('src.zenhub.requests.put', side_effect=mock_response)
     @patch('src.zenhub.requests.post', side_effect=mock_response)
-    def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put):
+    def test_sync_board_jira_to_zen(self, zenhub_post, zenhub_put, github_patch):
         """Test syncing a repo from Jira to ZenHub.
         Assert that API calls are made in the correct order with correct data."""
 

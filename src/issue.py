@@ -9,10 +9,7 @@ logger = logging.getLogger(__name__)
 class Issue:
 
     def __init__(self):
-
-        self.assignees = None  # list[str]
-        self.created = None  # datetime object
-
+        self.assignees = None
         self.description = None  # str
         self.github_key = None  # str, this identifier is used by ZenHub and github
         self.issue_type = None  # str, for Jira: Epic or Task or Story or Bug, for ZenHub: Epic or Issue

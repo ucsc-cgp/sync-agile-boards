@@ -138,7 +138,7 @@ class JiraIssue(Issue):
         self.repo.api_call(requests.post, f'issue/{self.jira_key}/transitions', json=transition, success_code=204)
 
         logger.debug(f'Updating Jira issue {self.jira_key} story points to {self.story_points}')
-        # Issue assignee, description, summary, and story points fields can be updated from a dictionary
+        # Issue story points field can be updated from a dictionary
         try:
             self.repo.api_call(requests.put, f'issue/{self.jira_key}',
                                json={'fields': {CustomFieldNames.story_points: self.story_points}}, success_code=204)
