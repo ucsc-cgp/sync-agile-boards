@@ -37,7 +37,7 @@ def _get_repo_url(repo_name, org_name):
 
 def get_zenhub_pipeline(i: 'Issue'):
 
-    if i.jira_sprint_id is None:  # issue is in the backlog
+    if i.sprint_id is None:  # issue is in the backlog
         return jira_to_zen_backlog_map[i.status]
     else:
         return jira_to_zen_sprint_map[i.status]
