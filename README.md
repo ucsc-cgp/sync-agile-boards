@@ -29,6 +29,43 @@ print(encoded_token)
 ``` 
 Write `encoded_token` to `~/.sync-agile-board-jira_config`.
 
+## Mapping of pipeline labels
+
+Pipelines can be semantically identical between the two management systems but they may use different labels. 
+The following two tables show the correspondence between semantically identical labels for each system.
+
+<table>
+<tr><th>Table 1: Jira to ZenHub </th><th>Table 2: ZenHub to Jira </th></tr>
+<tr><td>
+
+|Jira | ZenHub|
+|-----|-------|
+| New Issue | New Issues |
+| Icebox | Icebox |
+| To Do | Backlog |
+| In Progress | In Progress |
+| In Review | Review/QA |
+| Merged | Merged |
+| Done | Done |
+| Rejected | Closed |
+
+</td><td>
+
+| ZenHub | Jira | 
+|--------|------|
+| New Issues | New Issue |
+| Backlog | To Do |
+| Icebox | Icebox |
+| In Progress | In Progress |
+| Review/QA | In Review |
+| Merged | Merged |
+| Done | Done |
+| Closed | Done |
+| Epics | To Do |
+
+</td></tr> </table>
+
+
 ## Command Line Interface
 The command line interface found in `sync_agile_boards.py` may be used in either of two modes. You may synchronize one repo at a 
 time by entering repository information and options in the command line, or you may enter a configuration file containing information
