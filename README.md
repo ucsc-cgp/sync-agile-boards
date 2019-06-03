@@ -63,7 +63,7 @@ The following two tables show the correspondence between semantically identical 
 | Closed | Done |
 | Epics | To Do |
 
-</td></tr> </table>
+</td></tr> </table> 
 
 
 ## Command Line Interface
