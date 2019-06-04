@@ -25,8 +25,8 @@ class Issue:
         self.sprint_name = None  # str, when synchronized this should be the same in Jira and ZenHub
         self.milestone_name = None # str
         self.milestone_number = None  # int, unique to GitHub/ZenHub
-        self.jira_sprint_name = None
-        self.jira_sprint_id = None  # str, unique to Jira
+        self.sprint_name = None
+        self.sprint_id = None  # str, unique to Jira
 
         self.repo = None  # Repo object, the repo in which this issue lives
 

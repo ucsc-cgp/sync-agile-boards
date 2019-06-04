@@ -96,8 +96,8 @@ class JiraIssue(Issue):
 
                 match_obj = re.search(r'id=(\w*),.*name=([\w-]*),', sprint_info)
                 if match_obj:
-                    self.jira_sprint_id = int(match_obj.group(1))
-                    self.jira_sprint_name = match_obj.group(2)
+                    self.sprint_id = int(match_obj.group(1))
+                    self.sprint_name = match_obj.group(2)
                 else:
                     logger.info(f'No sprint ID was found in {CustomFieldNames.sprint}'
                                 ' - trying different way to find sprint ID...')
@@ -174,7 +174,7 @@ class JiraIssue(Issue):
                            json={'issues': [self.jira_key]}, success_code=204)
 
     def remove_from_sprint(self):
-        logger.debug(f'Removing Jira issue {self.jira_key} from sprint {self.jira_sprint_name}')
+        logger.debug(f'Removing Jira issue {self.jira_key} from sprint {self.sprint_name}')
         self.repo.api_call(requests.put, f'issue/{self.jira_key}',
                            json={'fields': {CustomFieldNames.sprint: None}}, success_code=204)
 

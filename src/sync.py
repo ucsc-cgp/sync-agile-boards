@@ -135,15 +135,15 @@ class Sync:
         if source.__class__.__name__ == 'ZenHubIssue':
             if source.milestone_name is None:
                 logger.debug(f'Sync sprint: Issue {source.github_key} does not belong to any milestone')
-                if sink.jira_sprint_id:
+                if sink.sprint_id:
                     sink.remove_from_sprint()
 
-            elif sink.jira_sprint_name == source.milestone_name:
+            elif sink.sprint_name == source.milestone_name:
                 logger.debug(f'Sync sprint: Issue {sink.jira_key} is already in sprint {source.milestone_name}')
 
             else:
                 assert sink.__class__.__name__ == 'JiraIssue'
-                if sink.jira_sprint_id is None:
+                if sink.sprint_id is None:
                     milestone_title = source.milestone_name
                     sprint_id = sink.get_sprint_id(milestone_title)
                     if sprint_id:
@@ -154,18 +154,18 @@ class Sync:
                             f'Sync sprint: No Sprint ID found for {sink.jira_key} and sprint title {milestone_title}')
 
         elif source.__class__.__name__ == 'JiraIssue':
-            if source.jira_sprint_name is None:
+            if source.sprint_name is None:
                 logger.debug(f'Sync sprint: Issue {source.github_key} does not belong to any milestone')
                 if sink.milestone_name:
                     sink.remove_from_milestone()
 
-            elif sink.milestone_name == source.jira_sprint_name:
-                logger.debug(f'Sync sprint: Issue {sink.github_key} is already in sprint {source.jira_sprint_name}')
+            elif sink.milestone_name == source.sprint_name:
+                logger.debug(f'Sync sprint: Issue {sink.github_key} is already in sprint {source.sprint_name}')
 
             else:
                 assert sink.__class__.__name__ == 'ZenHubIssue'
                 if sink.milestone_name is None:
-                    sprint_title = source.jira_sprint_name
+                    sprint_title = source.sprint_name
                     milestone_id = sink.get_milestone_id(sprint_title)
                     if milestone_id:
                         logger.debug(f'Sync sprint: Adding issue {sink.github_key} to sprint {sprint_title}')
