@@ -727,6 +727,8 @@ class TestSync(unittest.TestCase):
     @patch('src.jira.requests.get', side_effect=mock_response)
     @patch('src.jira.requests.post', side_effect=mock_response)
     def test_sync_sprint(self, jira_post, jira_get):
+        # This only test from ZenHub to Jira. Tests from Jira to ZenHub are logically identical and therefore
+        # we don't cover it here.
         zen_repo = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['5', '6', '7', '8'])
         jira_repo = JiraRepo(repo_name='JIRA', jira_org='ucsc-cgl')
         # Trivial test: Zen issue not part of a milestone, the corresponding Jira story is not part of a sprint.
