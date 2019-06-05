@@ -20,7 +20,8 @@ class JiraRepo(Repo):
         :param repo_name: Required. The repo to work with e.g. TEST
         :param jira_org: Required. The organization the repo belongs to, e.g. ucsc-cgl
         :param jql: Optional. If not specified, all issues in the repo will be retrieved. If specified, only will
-        retrieve issues that match this Jira Query Language filter.
+        retrieve issues that match this Jira Query Language filter
+        :param empty: Optional. If true, initialize this repo without any issues
         """
 
         super().__init__()
@@ -47,7 +48,6 @@ class JiraRepo(Repo):
 
 class JiraIssue(Issue):
 
-    # TODO break up this huge method
     def __init__(self, repo: 'JiraRepo', key: str = None, content: dict = None):
         """
         Create an Issue object from an issue key or from a portion of an API response
@@ -106,7 +106,10 @@ class JiraIssue(Issue):
 
     @staticmethod
     def get_utc_offset(timestamp: str):
-        """Return a timezone object representing the UTC offset found in the timestamp"""
+        """
+        Return a timezone object representing the UTC offset found in the timestamp
+        :param timestamp: a string with a timestamp in the format (+/-)HHMM at the end
+        """
         offset_direction = timestamp[-5]  # A plus or minus sign
         offset_hours = int(timestamp[-4:-2])
         offset_minutes = int(timestamp[-2:])
@@ -117,6 +120,7 @@ class JiraIssue(Issue):
         """Find the equivalent Github issue key, repository name, milestone name and number if listed in the
         description field. Issues synchronized by Unito will have this information, but not all issue descriptions
         have the corresponding GitHub issue listed in them."""
+
         if self.description:
             match_obj1 = re.search(r'(?<=Repository Name: )(.*?)(?={color})', self.description)
             match_obj2 = re.search(r'(?<=Issue Number: )(.*?)(?={color})', self.description)
@@ -143,7 +147,8 @@ class JiraIssue(Issue):
             self.repo.api_call(requests.put, f'issue/{self.jira_key}',
                                json={'fields': {CustomFieldNames.story_points: self.story_points}}, success_code=204)
         except RuntimeError as e:
-            logger.warning(f'{repr(e)} error updating issue {self.jira_key} story points. Check that the issue is not a task')
+            logger.warning(f'{repr(e)} error updating issue {self.jira_key} story points. '
+                           f'Check that the issue is not a task')
 
     def change_epic_membership(self, add: str = None, remove: str = None):
         """Add or remove given issue from this epic (self). Specify one issue to add or remove as a kwarg"""
@@ -168,18 +173,26 @@ class JiraIssue(Issue):
         return children
 
     def add_to_sprint(self, sprint_id: str):
-        """Post this issue to the sprint with given ID"""
+        """
+        Post this issue to a sprint
+        :param sprint_id: Jira ID of the sprint to add this issue to
+        """
         logger.debug(f'Adding Jira issue {self.jira_key} to sprint {sprint_id}')
         self.repo.api_call(requests.post, f'sprint/{sprint_id}/issue', url_head=self.repo.alt_url,
                            json={'issues': [self.jira_key]}, success_code=204)
 
     def remove_from_sprint(self):
+        """Remove this issue from any sprint it may be in"""
+
         logger.debug(f'Removing Jira issue {self.jira_key} from sprint {self.sprint_name}')
         self.repo.api_call(requests.put, f'issue/{self.jira_key}',
                            json={'fields': {CustomFieldNames.sprint: None}}, success_code=204)
 
-    def get_sprint_id(self, sprint_title: str):
-
+    def get_sprint_id(self, sprint_title: str) -> int or None:
+        """
+        Search for a sprint ID by its name
+        :param sprint_title: Jira sprint name to look up ID for
+        """
         url = f'search?jql=sprint="{sprint_title}"'
         try:
             content = self.repo.api_call(requests.get, url)
