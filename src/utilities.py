@@ -3,9 +3,7 @@
 import os
 import errno
 import logging
-import requests
 
-from src.access import get_access_params
 from src.issue import Issue
 from settings import jira_to_zen_backlog_map, jira_to_zen_sprint_map, zen_to_jira_map, urls
 
@@ -36,6 +34,7 @@ def _get_repo_url(repo_name, org_name):
 
 
 def get_zenhub_pipeline(i: 'Issue'):
+    """Return the corresponding ZenHub pipeline for a Jira issue using the mapping in settings.py"""
 
     if i.sprint_id is None:  # issue is in the backlog
         return jira_to_zen_backlog_map[i.status]
@@ -44,11 +43,13 @@ def get_zenhub_pipeline(i: 'Issue'):
 
 
 def get_jira_status(i: 'Issue'):
+    """Return the corresponding Jira status for a ZenHub issue using the mapping in settings.py"""
 
     return zen_to_jira_map[i.pipeline]
 
 
 class CustomFieldNames:
-    """A class to hold field ids with names that aren't self explanatory"""
+    """A class to hold field ids with names that aren't self-explanatory"""
+
     sprint = 'customfield_10010'
     story_points = 'customfield_10014'

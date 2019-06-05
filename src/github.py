@@ -13,6 +13,12 @@ logger = logging.getLogger(__name__)
 class GitHubRepo(Repo):
 
     def __init__(self, repo_name: str = None, org: str = None, issues: list = None):
+        """
+        Create a GitHub Repo object from a repo name and organization
+        :param repo_name: Name of the repo in GitHub
+        :param org: Organization this repo belongs to in GitHub
+        :param issues: Optional. If specified, only retrieve information for this set of issues
+        """
 
         super().__init__()
         self.url = get_access_params('github')['options']['server'] + org + '/'
@@ -29,7 +35,8 @@ class GitHubRepo(Repo):
                                     url_tail=f'search/issues?q=repo:{self.org}/{self.name}&page=', page=1)
 
             for issue_dict in content['items']:
-                self.issues[str(issue_dict['number'])] = GitHubIssue(key=issue_dict['number'], repo=self, content=issue_dict)
+                self.issues[str(issue_dict['number'])] = GitHubIssue(key=issue_dict['number'], repo=self,
+                                                                     content=issue_dict)
 
 
 class GitHubIssue(Issue):
@@ -58,8 +65,10 @@ class GitHubIssue(Issue):
 
         # Get datetime objects from timestamp strings and adjust for time zone
         default_tz = pytz.timezone('UTC')  # GitHub timestamps are all in UTC time
-        self.created = default_tz.localize(datetime.datetime.strptime(content['created_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S'))
-        self.updated = default_tz.localize(datetime.datetime.strptime(content['updated_at'].split('Z')[0], '%Y-%m-%dT%H:%M:%S'))
+        self.created = default_tz.localize(datetime.datetime.strptime(content['created_at'].split('Z')[0],
+                                                                      '%Y-%m-%dT%H:%M:%S'))
+        self.updated = default_tz.localize(datetime.datetime.strptime(content['updated_at'].split('Z')[0],
+                                                                      '%Y-%m-%dT%H:%M:%S'))
 
         if content['milestone']:
             self.milestone_name = content['milestone']['title']
@@ -89,18 +98,29 @@ class GitHubIssue(Issue):
 
     def open(self):
         """Set this issue's state to open"""
+
         self.repo.api_call(requests.patch, f'{self.repo.name}/issues/{self.github_key}', json={"state": "open"})
 
     def add_to_milestone(self, milestone_id):
+        """
+        Add this issue to a milestone.
+        :param milestone_id: ZenHub/GitHub ID of milestone to add to
+        """
         logger.debug(f'Adding issue {self.github_key} to milestone {milestone_id}')
         self.repo.api_call(requests.patch, f'{self.repo.name}/issues/{self.github_key}',
                            json={"milestone": milestone_id})
 
     def remove_from_milestone(self):
+        """Remove this issue from any milestone it may be in."""
+
         logger.debug(f'Removing issue {self.github_key} from milestone')
         self.repo.api_call(requests.patch, f'{self.repo.name}/issues/{self.github_key}', json={"milestone": None})
 
-    def get_milestone_id(self, milestone_name: str) -> int:
+    def get_milestone_id(self, milestone_name: str) -> int or None:
+        """
+        Look up the ID for a milestone given its name
+        :param milestone_name: Name of milestone to search for
+        """
         content = self.repo.api_call(requests.get, f'{self.repo.name}/milestones')
         for milestone in content:
             if milestone['title'] == milestone_name:

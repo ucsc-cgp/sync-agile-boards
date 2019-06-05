@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def main():
+    """Parse instructions from the command line and run synchronization"""
+
     # Make an argument parser with subparsers
     parser = argparse.ArgumentParser(description="This is a tool for synchronizing issue point values, sprints, "
                                                  "status/pipeline, epic status and membership between Jira and ZenHub. "
@@ -70,7 +72,10 @@ def main():
 
 
 def run_synchronization(args: 'Namespace'):
-    """Run synchronization as specified in the given command line arguments"""
+    """
+    Run synchronization as specified in the given command line arguments
+    :param args: an argparse Namespace object holding the values of parsed arguments
+    """
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)  # Show all log messages
@@ -95,7 +100,8 @@ def run_synchronization(args: 'Namespace'):
                 logger.warning(f'Cannot get information for issue {issue.jira_key}: {e}')
 
     elif args.jira_query_language:  # Only syncing issues that match this Jira query
-        jira_repo = JiraRepo(j_repo_name, j_org_name, jql=args.jira_query_language)  # Get all Jira issues in the repo that match the query
+        # Get all Jira issues in the repo that match the query
+        jira_repo = JiraRepo(j_repo_name, j_org_name, jql=args.jira_query_language)
         zenhub_repo = ZenHubRepo(z_repo_name, z_org_name, issues=[])  # Make a ZenHubRepo with no issues
         for issue in jira_repo.issues.values():  # Then add in each issue that has a match in the filtered Jira subset
             try:
@@ -108,9 +114,9 @@ def run_synchronization(args: 'Namespace'):
         zenhub_repo = ZenHubRepo(z_repo_name, z_org_name)
 
     if args.j:
-        Sync.sync_board(source=jira_repo, sink=zenhub_repo)
+        Sync.sync_board(source=jira_repo, dest=zenhub_repo)
     elif args.z:
-        Sync.sync_board(source=zenhub_repo, sink=jira_repo)
+        Sync.sync_board(source=zenhub_repo, dest=jira_repo)
     else:
         Sync.mirror_sync(jira_repo=jira_repo, zenhub_repo=zenhub_repo)
     logger.info("Synchronization finished")
