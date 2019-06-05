@@ -200,5 +200,5 @@ class Sync:
                         dest.add_to_milestone(milestone_id)
                     else:
                         logger.warning(
-                            f'Sync sprint: No Sprint ID found for {sink.github_key} and sprint title {sprint_title}')
+                            f'Sync sprint: No Sprint ID found for {dest.github_key} and sprint title {sprint_title}')
 
