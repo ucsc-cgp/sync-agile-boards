@@ -22,8 +22,8 @@ class ZenHubRepo(Repo):
         :param repo_name: Required. The name of the repo e.g. test-sync.
         :param org: Required. The name of the organization to which the repo belongs e.g. ucsc-cgp
         :param issues: Optional. If not specified, all issues in the repo will be retrieved. If specified, only retrieve
-        :param open_only:
-        and update the listed issues.
+                       and update the listed issues.
+        :param open_only: Optional. If true, only retrieve and update issues that are open in ZenHub.
         """
 
         super().__init__()
@@ -60,7 +60,9 @@ class ZenHubRepo(Repo):
         """Retrieve all open issues in this repo thru the ZenHub API"""
 
         content = self.api_call(requests.get, f'{self.id}/board')
-        for pipeline in tqdm(content['pipelines'], desc='getting ZenHub issues by pipeline'):  # progress bar, only shows number of pipelines not number of issues
+
+        # progress bar, only shows number of pipelines not number of issues
+        for pipeline in tqdm(content['pipelines'], desc='getting ZenHub issues by pipeline'):
             for issue in pipeline['issues']:
                 issue['pipeline'] = {'name': pipeline['name']}  # Add in the pipeline info to the sub-dictionary
                 self.issues[str(issue['issue_number'])] = ZenHubIssue(repo=self, content=issue)
@@ -157,12 +159,14 @@ class ZenHubIssue(Issue):
 
     def promote_issue_to_epic(self):
         """Convert an issue to an epic"""
+
         logger.debug(f'Promoting ZenHub issue {self.github_key} to epic')
         json_dict = {'issues': [{'repo_id': self.repo.id, 'issue_number': self.github_key}]}
         self.repo.api_call(requests.post, f'{self.repo.id}/issues/{self.github_key}/convert_to_epic', json=json_dict)
 
     def demote_epic_to_issue(self):
         """Convert an epic into a regular issue"""
+
         logger.debug(f'Demoting ZenHub epic {self.github_key} to issue')
         json_dict = {'issues': [{'repo_id': self.repo.id, 'issue_number': self.github_key}]}
         self.repo.api_call(requests.post, f'{self.repo.id}/epics/{self.github_key}/convert_to_issue', json=json_dict)
@@ -191,6 +195,7 @@ class ZenHubIssue(Issue):
         self.repo.api_call(requests.post, f'{self.repo.id}/epics/{self.github_key}/update_issues', json=content)
 
     def get_most_recent_event(self) -> datetime:
+        """Look up the list of ZenHub events for this issue and return the timestamp of the most recent one"""
 
         content = self.repo.api_call(requests.get, f'{self.repo.id}/issues/{self.github_key}/events')
         default_tz = pytz.timezone('UTC')
@@ -204,10 +209,20 @@ class ZenHubIssue(Issue):
             return default_tz.localize(datetime.datetime.min)
 
     def add_to_milestone(self, milestone_id):
+        """
+        Add this issue to a milestone.
+        :param milestone_id: ZenHub/GitHub ID of milestone to add to
+        """
         self.github_equivalent.add_to_milestone(milestone_id)
 
     def remove_from_milestone(self):
+        """Remove this issue from any milestone it may be in."""
+
         self.github_equivalent.remove_from_milestone()
 
     def get_milestone_id(self, milestone_name: str) -> int:
+        """
+        Look up the ID for a milestone given its name
+        :param milestone_name: Name of milestone to search for
+        """
         return self.github_equivalent.get_milestone_id(milestone_name)

@@ -13,14 +13,20 @@ class Sync:
         - Each issue has a counterpart in each management system
         - Each issue's description says the name of the issue it's linked with"""
     @staticmethod
-    def sync_board(source: 'Repo', sink: 'Repo'):
+    def sync_board(source: 'Repo', dest: 'Repo'):
+        """
+        For each pair of repos, sync from the issue in the source repo to that in the dest repo.
+        Alternative to mirror_sync.
+        :param source: This repo's issues will be replicated in the sink repo
+        :param dest: This repo's issues will be updated to match those in the source
+        """
 
-        if source.__class__.__name__ == 'ZenHubRepo' and sink.__class__.__name__ == 'JiraRepo':
+        if source.__class__.__name__ == 'ZenHubRepo' and dest.__class__.__name__ == 'JiraRepo':
             for key, issue in tqdm(source.issues.items(), desc='syncing'):  # progress bar
                 try:
                     if issue.jira_key:
                         logging.info(f'Syncing from {source.name} issue {key} to issue {issue.jira_key}')
-                        Sync.sync_from_specified_source(issue, sink.issues[issue.jira_key])
+                        Sync.sync_from_specified_source(issue, dest.issues[issue.jira_key])
                     else:
                         logging.warning(f'Skipping issue {key}: no Jira link found')
 
@@ -30,19 +36,20 @@ class Sync:
                 except KeyError as e:
                     logging.warning(repr(e) + f'Skipping this issue - matching issue in Jira not found')
 
-        elif source.__class__.__name__ == 'JiraRepo' and sink.__class__.__name__ == 'ZenHubRepo':
+        elif source.__class__.__name__ == 'JiraRepo' and dest.__class__.__name__ == 'ZenHubRepo':
             for key, issue in tqdm(source.issues.items(), desc='syncing'):  # progress bar
                 for i in range(number_of_retries):  # Allow for 3 tries
                     try:
                         if issue.github_key:
-                            logging.info(f'Syncing from issue {key} to {sink.name} issue {issue.github_key}')
-                            Sync.sync_from_specified_source(issue, sink.issues[issue.github_key])
+                            logging.info(f'Syncing from issue {key} to {dest.name} issue {issue.github_key}')
+                            Sync.sync_from_specified_source(issue, dest.issues[issue.github_key])
                         else:
                             logging.warning(f'Skipping issue {key}: no GitHub link found')
                         break
 
                     except RuntimeError as e:
-                        logging.warning(repr(e) + f' (attempt {i+1} of {number_of_retries}). Waiting 10 seconds before retrying...')
+                        logging.warning(repr(e) + f' (attempt {i+1} of {number_of_retries}). '
+                                        f'Waiting 10 seconds before retrying...')
                         time.sleep(10)  # The API rate limit may have been reached
                         continue
                     except KeyError as e:
@@ -50,6 +57,11 @@ class Sync:
 
     @staticmethod
     def mirror_sync(jira_repo: 'JiraRepo', zenhub_repo: 'ZenHubRepo'):
+        """
+        For each pair of issues in the repos, sync based on which is most recently updated. Alternative to sync_board.
+        :param jira_repo: JiraRepo to use
+        :param zenhub_repo: ZenHubRepo to use
+        """
 
         for key, issue in tqdm(jira_repo.issues.items(), desc='syncing'):  # progress bar
             for i in range(number_of_retries):  # Allow for a fixed number of tries
@@ -61,31 +73,37 @@ class Sync:
                     break
 
                 except RuntimeError as e:
-                    logging.warning(repr(e) + f' (attempt {i+1} of {number_of_retries}). Waiting 10 seconds before retrying...')
+                    logging.warning(repr(e) + f' (attempt {i+1} of {number_of_retries}). '
+                                    f'Waiting 10 seconds before retrying...')
                     time.sleep(10)  # The API rate limit may have been reached
                     continue
                 except KeyError as e:
                     logging.warning(repr(e) + f'Issue not found. Going to next issue')
 
     @staticmethod
-    def sync_from_specified_source(source: 'Issue', destination: 'Issue'):
+    def sync_from_specified_source(source: 'Issue', dest: 'Issue'):
+        """Sync two issues unidirectionally. Calls epic sync and sprint sync methods.
+        :param source: This issue's data will be replicated in the dest issue
+        :param dest: This issue's data will be updated to match the source
+        """
         # ZenHub issue types have to be changed through a separate request
-        if destination.__class__.__name__ == 'ZenHubIssue':
-            if source.issue_type == 'Epic' and destination.issue_type != 'Epic':
-                destination.promote_issue_to_epic()
-            elif source.issue_type != 'Epic' and destination.issue_type == 'Epic':
-                destination.demote_epic_to_issue()
+        if dest.__class__.__name__ == 'ZenHubIssue':
+            if source.issue_type == 'Epic' and dest.issue_type != 'Epic':
+                dest.promote_issue_to_epic()
+            elif source.issue_type != 'Epic' and dest.issue_type == 'Epic':
+                dest.demote_epic_to_issue()
 
-        Sync.sync_sprints(source, destination)
+        Sync.sync_sprints(source, dest)
 
-        destination.update_from(source)
-        destination.update_remote()
+        dest.update_from(source)
+        dest.update_remote()
 
-        if source.issue_type == 'Epic':  # By this point destination will also be an Epic
-            Sync.sync_epics(source, destination)
+        if source.issue_type == 'Epic':  # By this point dest will also be an Epic
+            Sync.sync_epics(source, dest)
 
     @staticmethod
     def sync_from_most_current(a: 'Issue', b: 'Issue'):
+        """Compare timestamps of two issues sync them, using the most recently updated as the source"""
 
         if a.updated > b.updated:  # a is the most current
             logging.info(f'Syncing {b} (updated at {b.updated}) from {a} (updated at {a.updated})')
@@ -95,11 +113,15 @@ class Sync:
             Sync.sync_from_specified_source(b, a)
 
     @staticmethod
-    def sync_epics(source: 'Issue', sink: 'Issue'):
+    def sync_epics(source: 'Issue', dest: 'Issue'):
+        """Sync epic membership of two issues
+        :param source: This issue's epic membership will be replicated in the sink issue
+        :param dest: This issue's epic membership will be updated to match the source
+        """
         logger.info('This is an epic. Synchronizing epic membership of all its issues...')
         # Get lists of epic children
         source_children = source.get_epic_children()
-        sink_children = sink.get_epic_children()
+        sink_children = dest.get_epic_children()
 
         for issue in source_children:  # It could have 0 children
 
@@ -118,59 +140,65 @@ class Sync:
                 twin_key = source_child.github_key
 
             if twin_key:
-                if twin_key not in sink_children:  # issue belongs to this epic in source but not sink yet,
-                    sink.change_epic_membership(add=twin_key)  # so add it as a child of sink
+                if twin_key not in sink_children:  # issue belongs to this epic in source but not dest yet,
+                    dest.change_epic_membership(add=twin_key)  # so add it as a child of dest
 
-                else:  # issue already belongs to this epic in both source and sink; remove it from the list so we can
+                else:  # issue already belongs to this epic in both source and dest; remove it from the list so we can
                     sink_children.remove(twin_key)  # tell if any are left at the end
             else:
-                logging.warning(f'Cannot update issue {issue} epic membership in other management system - no link identified')
+                logging.warning(f'Cannot update issue {issue} epic membership in other management system - '
+                                f'no link identified')
 
         for issue in sink_children:  # any issues left in this list do not belong to the epic in source,
-            sink.change_epic_membership(remove=issue)  # so they are removed from the epic in sink.
+            dest.change_epic_membership(remove=issue)  # so they are removed from the epic in dest.
 
     @staticmethod
-    def sync_sprints(source: 'Issue', sink: 'Issue'):
+    def sync_sprints(source: 'Issue', dest: 'Issue'):
+        """
+        Sync sprint membership of two issues
+        :param source: This issue's sprint status will be replicated in the sink issue
+        :param dest: This issue's sprint status will be updated to match the source
+        """
 
         if source.__class__.__name__ == 'ZenHubIssue':
             if source.milestone_name is None:
                 logger.debug(f'Sync sprint: Issue {source.github_key} does not belong to any milestone')
-                if sink.sprint_id:
-                    sink.remove_from_sprint()
+                if dest.sprint_id:
+                    dest.remove_from_sprint()
 
-            elif sink.sprint_name == source.milestone_name:
-                logger.debug(f'Sync sprint: Issue {sink.jira_key} is already in sprint {source.milestone_name}')
+            elif dest.sprint_name == source.milestone_name:
+                logger.debug(f'Sync sprint: Issue {dest.jira_key} is already in sprint {source.milestone_name}')
 
             else:
-                assert sink.__class__.__name__ == 'JiraIssue'
-                if sink.sprint_id is None:
+                assert dest.__class__.__name__ == 'JiraIssue'
+                if dest.sprint_id is None:
                     milestone_title = source.milestone_name
-                    sprint_id = sink.get_sprint_id(milestone_title)
+                    sprint_id = dest.get_sprint_id(milestone_title)
                     if sprint_id:
-                        logger.debug(f'Sync sprint: Added issue {sink.jira_key} to sprint {milestone_title}')
-                        sink.add_to_sprint(sprint_id)
+                        logger.debug(f'Sync sprint: Added issue {dest.jira_key} to sprint {milestone_title}')
+                        dest.add_to_sprint(sprint_id)
                     else:
                         logger.warning(
-                            f'Sync sprint: No Sprint ID found for {sink.jira_key} and sprint title {milestone_title}')
+                            f'Sync sprint: No Sprint ID found for {dest.jira_key} and sprint title {milestone_title}')
 
         elif source.__class__.__name__ == 'JiraIssue':
             if source.sprint_name is None:
                 logger.debug(f'Sync sprint: Issue {source.github_key} does not belong to any milestone')
-                if sink.milestone_name:
-                    sink.remove_from_milestone()
+                if dest.milestone_name:
+                    dest.remove_from_milestone()
 
-            elif sink.milestone_name == source.sprint_name:
-                logger.debug(f'Sync sprint: Issue {sink.github_key} is already in sprint {source.sprint_name}')
+            elif dest.milestone_name == source.sprint_name:
+                logger.debug(f'Sync sprint: Issue {dest.github_key} is already in sprint {source.sprint_name}')
 
             else:
-                assert sink.__class__.__name__ == 'ZenHubIssue'
-                if sink.milestone_name is None:
+                assert dest.__class__.__name__ == 'ZenHubIssue'
+                if dest.milestone_name is None:
                     sprint_title = source.sprint_name
-                    milestone_id = sink.get_milestone_id(sprint_title)
+                    milestone_id = dest.get_milestone_id(sprint_title)
                     if milestone_id:
-                        logger.debug(f'Sync sprint: Adding issue {sink.github_key} to sprint {sprint_title}')
-                        sink.add_to_milestone(milestone_id)
+                        logger.debug(f'Sync sprint: Adding issue {dest.github_key} to sprint {sprint_title}')
+                        dest.add_to_milestone(milestone_id)
                     else:
                         logger.warning(
-                            f'Sync sprint: No Sprint ID found for {sink.github_key} and sprint title {sprint_title}')
+                            f'Sync sprint: No Sprint ID found for {dest.github_key} and sprint title {sprint_title}')
 

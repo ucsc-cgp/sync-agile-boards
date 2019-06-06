@@ -23,7 +23,7 @@ class Issue:
         self.updated = None  # datetime object
 
         self.sprint_name = None  # str, when synchronized this should be the same in Jira and ZenHub
-        self.milestone_name = None # str
+        self.milestone_name = None  # str
         self.milestone_number = None  # int, unique to GitHub/ZenHub
         self.sprint_name = None
         self.sprint_id = None  # str, unique to Jira
@@ -34,6 +34,7 @@ class Issue:
         """
         Set all fields in the sink issue (self) to match those in the source Issue object.
         Fields that are defined in self but are None in source will be left alone.
+        :param source: an Issue object to use as the source
         """
 
         # Headers, url, and token are specific to the issue being in Jira or ZenHub.
@@ -63,7 +64,8 @@ class Repo:
 
     def api_call(self, action, url_tail: str, url_head: str = None, json: dict = None, page: int = '',
                  success_code: int = 200) -> dict:
-        """Method to handle all API calls
+        """
+        Method to handle all API calls
         :param action: A requests method to call, e.g. requests.get or requests.post
         :param url_tail: The part of the url that is unique to this request. Appended to url_head.
         :param url_head: Defaults to self.repo.url, e.g. 'https://api.zenhub.io/p1/repositories/'. Can be set to
