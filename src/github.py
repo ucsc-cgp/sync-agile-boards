@@ -72,7 +72,8 @@ class GitHubIssue(Issue):
 
         if content['milestone']:
             self.milestone_name = content['milestone']['title']
-            self.milestone_number = content['milestone']['number']
+            self.milestone_id = content['milestone']['number']
+
 
         # TODO: Note that GitHub api responses have both dict 'assignee' and dict array 'assignees' fields. 'assignee'
         #  is deprecated. This could cause problems if multiple people are assigned to an issue in GitHub, because the
