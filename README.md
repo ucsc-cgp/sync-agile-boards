@@ -1,10 +1,23 @@
 # sync-agile-boards
-This is a synchronization tool for Jira and ZenHub that is designed to complement Unito.
-Unito can only synchronize ZenHub information that is also stored in GitHub. sync-agile-boards
-synchronizes issue point values, pipeline/status, epic status and membership, and sprint/milestone
-status, which are not handled by Unito. It is assumed that Unito is being used to keep the other repository
-data in sync: each issue should have information in the description added by Unito that links it to
-its match.
+Synchronizes issues between Jira and ZenHub. It is designed to complement Unito.
+Unito can only synchronize ZenHub information that is also stored in GitHub. _sync-agile-boards_
+synchronizes the following attributes (which are not handled by Unito): 
+
+* issue point values
+* pipeline/status
+* epic status and membership
+* and sprint/milestone status and membership 
+
+Synchronizing sprint information depends on the existence of a sprint with identical names in both management
+systems. The user needs to verify that a sprint found in the source management system exists in the destination
+ management system with the identical name before invoking _sync-agile-boards_. Sprint synchronization is not mirrored. 
+ That means, if the source management system contains a 
+ sprint with name _sprint1_ but the destination managemement does not contain a sprint with that name, an issue 
+ associated with a _sprint1_ will be processed but its sprint information will remain unchanged (a warning will
+ be logged).  
+
+It is assumed that Unito is being used to keep the other repository data synchronized: each issue should have
+ information in the description added by Unito that links it to its match.
 
 ## Configuration
 
