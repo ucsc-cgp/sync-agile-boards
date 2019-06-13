@@ -29,6 +29,18 @@ print(encoded_token)
 ``` 
 Write `encoded_token` to `~/.sync-agile-board-jira_config`.
 
+## Set-up
+
+_sync-agile-boards_ requires Python 3, `pip` and `virtualenv` installed. We tested it on Python 3.6 and 3.7. 
+To install dependencies run the following in a terminal from the project root:
+```bash
+virtualenv --python=python3.6 .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+This installs a virtual environment that contains all requirements to run `sync_agile_boards.py`. To exit the virtual
+environment execute `deactivate`.
+
 ## Mapping of pipeline labels
 
 Pipelines can be semantically identical between the two management systems but they may use different labels. 
@@ -159,7 +171,7 @@ Each string is formatted exactly as if you entered it in the command line as des
 
 ## Tests
 
-To run all tests execute
+To run all tests activate the virtual environment as described in _Set-up_ above and execute
 ```bash
 python -m unittest discover -s tests
 ```
