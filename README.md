@@ -6,7 +6,7 @@ synchronizes the following attributes (which are not handled by Unito):
 * issue point values
 * pipeline/status
 * epic status and membership
-* and sprint/milestone status and membership 
+* sprint (Jira) and milestone (ZenHub) membership 
 
 Synchronizing sprint information depends on the existence of a sprint with identical names in both management
 systems. The user needs to verify that a sprint found in the source management system exists in the destination
