@@ -156,7 +156,7 @@ class Sync:
     def sync_sprints(source: 'Issue', dest: 'Issue'):
         """
         Sync sprint membership of two issues
-        :param source: This issue's sprint status will be replicated in the sink issue
+        :param source: This issue's sprint status will be replicated in the dest issue
         :param dest: This issue's sprint status will be updated to match the source
         """
 
@@ -193,8 +193,10 @@ class Sync:
                         dest.add_to_sprint(sprint_id)  # new sprint
                     else:
                         logger.warning(
-                            f'Sync sprint: Sprint name {dest.sprint_name} does not match '
-                            f'milestone name {source.milestone_name} - sprint and milestone names must match!')
+                            f'Sync sprint: Cannot find sprint name {source.milestone_name} in the destination. '
+                            f'Association of issue {dest.jira_key} will remain unchanged. Sprint name {dest.sprint_name}'
+                            f' does not match milestone name {source.milestone_name} - sprint and milestone names '
+                            f'must match!')
 
         elif source.__class__.__name__ == 'JiraIssue':
             if source.sprint_name is None:
@@ -222,15 +224,14 @@ class Sync:
                     milestone_id = dest.get_milestone_id(source.sprint_name)
                     if milestone_id:
                         logger.info(f'Sync sprint: Found sprint name {source.sprint_name} in GitHub repo')
-                        dest.remove_from_milestone
+                        dest.remove_from_milestone()
                         dest.milestone_name = source.sprint_name
                         dest.milestone_id = milestone_id
                         logger.info(f'GitHub issue {dest.github_key} now part of milestone {dest.milestone_name}')
                         dest.add_to_milestone(milestone_id)
                     else:
                         logger.warning(
-                            f'Sync sprint: Milestone name {source.sprint_name} does not match '
-                            f'sprint name {dest.milestone_name} - sprint and milestone names must match!')
-
-
-
+                            f'Sync sprint: Cannot find sprint name {source.sprint_name} in the destination. '
+                            f'Association of issue {dest.milestone_id} will remain unchanged. Milestone name '
+                            f'{dest.milestone_name} does not match sprint name {source.sprint_name} - sprint and '
+                            f'milestone names must match!')
