@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch, call
 from more_itertools import last
 
+
 from src.jira import JiraRepo, JiraIssue
 from src.sync import Sync
 from src.zenhub import ZenHubIssue, ZenHubRepo
@@ -976,7 +977,7 @@ class TestSync(unittest.TestCase):
 
         self.patch_requests = patch('requests.get', side_effect=mock_response).start()
         self.patch_token = patch('src.access._get_token', return_value='token').start()
-
+        
         self.ZENHUB_REPO = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=[str(x) for x in range(1, 5)])
         self.ZENHUB_REPO_SYNC = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=[str(x) for x in range(5, 12)])
         self.ZENHUB_ISSUE_1 = self.ZENHUB_REPO.issues['1']
@@ -1011,7 +1012,6 @@ class TestSync(unittest.TestCase):
     def test_sync_board_zen_to_jira(self, jira_post, jira_put):
         """Test syncing a repo from ZenHub to Jira.
         Assert that API calls are made in the correct order with correct data."""
-
 
         Sync.sync_board(self.ZENHUB_REPO, self.JIRA_REPO)
 

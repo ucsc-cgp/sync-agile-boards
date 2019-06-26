@@ -190,7 +190,6 @@ class JiraIssue(Issue):
         self.repo.api_call(requests.put, f'issue/{self.jira_key}',
                            json={'fields': {CustomFieldNames.sprint: None}}, success_code=204)
 
-
     def get_sprint_id(self, sprint_title: str) -> int or None:
         """
         Search for a sprint ID by its name
@@ -210,4 +209,3 @@ class JiraIssue(Issue):
             jira_sprint_id = None
 
         return jira_sprint_id
-

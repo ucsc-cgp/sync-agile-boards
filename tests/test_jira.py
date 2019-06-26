@@ -115,7 +115,6 @@ class TestJiraIssue(unittest.TestCase):
 
         # Initialize a board with all its issues
         cls.board = JiraRepo(repo_name='TEST', jira_org='org')
-        #print(cls.board.issues)
         cls.j = cls.board.issues['REAL-ISSUE-1']
         cls.k = cls.board.issues['REAL-ISSUE-2']
 
@@ -159,4 +158,3 @@ class TestJiraIssue(unittest.TestCase):
         observed = jira_get.call_args[0][0]
         self.assertEqual(expected, observed)
         self.assertEqual(id, None)
-
