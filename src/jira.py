@@ -185,6 +185,8 @@ class JiraIssue(Issue):
         """Remove this issue from any sprint it may be in"""
 
         logger.debug(f'Removing Jira issue {self.jira_key} from sprint {self.sprint_name}')
+        self.sprint_name = None
+        self.sprint_id = None
         self.repo.api_call(requests.put, f'issue/{self.jira_key}',
                            json={'fields': {CustomFieldNames.sprint: None}}, success_code=204)
 
@@ -194,16 +196,16 @@ class JiraIssue(Issue):
         :param sprint_title: Jira sprint name to look up ID for
         """
         url = f'search?jql=sprint="{sprint_title}"'
+        content = self.repo.api_call(requests.get, url)
         try:
-            content = self.repo.api_call(requests.get, url)
             data = content['issues'][0]['fields']['customfield_10010']
             # The following attempts to extract the sprint ID from a string wrapped in a list, which contains one "["
             # character. It is very cryptic. Please see test in for Sync class for an example of "data".
             sprint_info = data[0].split('[')[1].split(',')
             jira_sprint_id = int(re.search(r'\d+', sprint_info[0]).group(0))
-
             logger.info(f'Sync sprint: Found sprint ID for sprint {sprint_title}')
-            return jira_sprint_id
+        except KeyError:
+            logger.warning(first(content['errorMessages']))
+            jira_sprint_id = None
 
-        except RuntimeError:
-            return None
+        return jira_sprint_id

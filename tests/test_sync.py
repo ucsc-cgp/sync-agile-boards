@@ -1,6 +1,8 @@
 import re
 import unittest
 from unittest.mock import patch, call
+from more_itertools import last
+
 
 from src.jira import JiraRepo, JiraIssue
 from src.sync import Sync
@@ -133,6 +135,169 @@ JIRA_8 = {
     ]
 }
 
+# JIRA_9 is a Jira Story corresponding to GitHub issue GHUB-9, but no sprint of same name as the GitHub
+# milestone can be found in Jira.
+JIRA_9 = {
+    'total': 2,
+    'maxResults': 50,
+    'issues': [
+        {
+            'key': 'JIRA-9',
+            'fields': {
+                'assignee': {
+                    'displayName': 'John Doe',
+                    'key': 'awesome_programmer',
+                    'name': 'awesome_programmer'},
+                'description':
+                    '\r\n┆{color:#707070}Issue is synchronized with a [GitHub issue|'
+                    'https://github.com/ucsc-cgp/abc/issues/9]{color}\r\n'
+                    '┆{color:#707070}Repository Name: abc{color}\r\n'
+                    '┆{color:#707070}Issue Number: 9{color}\r\n',
+                'customfield_10010': [
+                    'com.atlassian.greenhopper.service.sprint.Sprint@5c63f0b2[id=42,'
+                    'rapidViewId=13,state=FUTURE,name=testsprint1,goal=,'
+                    'startDate=<null>,endDate=<null>,completeDate=<null>,sequence=42]'
+                ],
+                'created': '2019-02-05T14:52:11.501-0800',
+                'customfield_10008': None,
+                'customfield_10014': 4.0,
+                'issuetype': {'name': 'Story'},
+                'status': {'name': 'In Progress'},
+                'summary': 'JIRA 9',
+                'updated': '2019-02-20T14:34:08.870-0800'
+            }
+        }
+    ]
+}
+
+JIRA_9_remove_10010 = {  # mocks removal of ticket from sprint, thus customfield 10010 is now 'None'
+    'total': 2,
+    'maxResults': 50,
+    'issues': [
+        {
+            'key': 'JIRA-9',
+            'fields': {
+                'assignee': {
+                    'displayName': 'John Doe',
+                    'key': 'awesome_programmer',
+                    'name': 'awesome_programmer'},
+                'description':
+                    '\r\n┆{color:#707070}Issue is synchronized with a [GitHub issue|'
+                    'https://github.com/ucsc-cgp/abc/issues/9]{color}\r\n'
+                    '┆{color:#707070}Repository Name: abc{color}\r\n'
+                    '┆{color:#707070}Issue Number: 9{color}\r\n',
+                'customfield_10010': None,
+                'created': '2019-02-05T14:52:11.501-0800',
+                'customfield_10008': None,
+                'customfield_10014': 4.0,
+                'issuetype': {'name': 'Story'},
+                'status': {'name': 'In Progress'},
+                'summary': 'JIRA 9',
+                'updated': '2019-02-20T14:34:08.870-0800'
+            }
+        }
+    ]
+}
+
+# JIRA_10 is a Jira Story corresponding to GitHub issue GHUB-10, but its sprint name dosen't match GHUBs
+# milestone milestone name.
+JIRA_10 = {
+    'total': 2,
+    'maxResults': 50,
+    'issues': [
+        {
+            'key': 'JIRA-10',
+            'fields': {
+                'assignee': {
+                    'displayName': 'John Doe',
+                    'key': 'awesome_programmer',
+                    'name': 'awesome_programmer'},
+                'description':
+                    '\r\n┆{color:#707070}Issue is synchronized with a [GitHub issue|'
+                    'https://github.com/ucsc-cgp/abc/issues/10]{color}\r\n'
+                    '┆{color:#707070}Repository Name: abc{color}\r\n'
+                    '┆{color:#707070}Issue Number: 10{color}\r\n',
+                'customfield_10010': [
+                    'com.atlassian.greenhopper.service.sprint.Sprint@5c63f0b2[id=42,'
+                    'rapidViewId=13,state=FUTURE,name=testsprint1,goal=,'
+                    'startDate=<null>,endDate=<null>,completeDate=<null>,sequence=42]'
+                ],
+                'created': '2019-02-05T14:52:11.501-0800',
+                'customfield_10008': None,
+                'customfield_10014': 4.0,
+                'issuetype': {'name': 'Story'},
+                'status': {'name': 'In Progress'},
+                'summary': 'JIRA 10',
+                'updated': '2019-02-20T14:34:08.870-0800'
+            }
+        }
+    ]
+}
+
+# JIRA_11 is a Jira Story corresponding to GitHub issue GHUB-11, but its sprint name dosen't match GHUBs
+# milestone milestone name, but JIRA has a sprint with the same name as the milestone name that ticket
+# is associated with in GitHub.
+JIRA_11 = {
+    'total': 2,
+    'maxResults': 50,
+    'issues': [
+        {
+            'key': 'JIRA-11',
+            'fields': {
+                'assignee': {
+                    'displayName': 'John Doe',
+                    'key': 'awesome_programmer',
+                    'name': 'awesome_programmer'},
+                'description':
+                    '\r\n┆{color:#707070}Issue is synchronized with a [GitHub issue|'
+                    'https://github.com/ucsc-cgp/abc/issues/11]{color}\r\n'
+                    '┆{color:#707070}Repository Name: abc{color}\r\n'
+                    '┆{color:#707070}Issue Number: 11{color}\r\n',
+                'customfield_10010': [
+                    'com.atlassian.greenhopper.service.sprint.Sprint@5c63f0b2[id=99,'
+                    'rapidViewId=13,state=FUTURE,name=testsprint3,goal=,'
+                    'startDate=<null>,endDate=<null>,completeDate=<null>,sequence=99]'
+                ],
+                'created': '2019-02-05T14:52:11.501-0800',
+                'customfield_10008': None,
+                'customfield_10014': 4.0,
+                'issuetype': {'name': 'Story'},
+                'status': {'name': 'In Progress'},
+                'summary': 'JIRA 11',
+                'updated': '2019-02-20T14:34:08.870-0800'
+            }
+        }
+    ]
+}
+
+JIRA_11_remove_10010 = {  # mocks removal of ticket from sprint, thus customfield 10010 is now 'None'
+    'total': 2,
+    'maxResults': 50,
+    'issues': [
+        {
+            'key': 'JIRA-11',
+            'fields': {
+                'assignee': {
+                    'displayName': 'John Doe',
+                    'key': 'awesome_programmer',
+                    'name': 'awesome_programmer'},
+                'description':
+                    '\r\n┆{color:#707070}Issue is synchronized with a [GitHub issue|'
+                    'https://github.com/ucsc-cgp/abc/issues/11]{color}\r\n'
+                    '┆{color:#707070}Repository Name: abc{color}\r\n'
+                    '┆{color:#707070}Issue Number: 11{color}\r\n',
+                'customfield_10010': None,
+                'created': '2019-02-05T14:52:11.501-0800',
+                'customfield_10008': None,
+                'customfield_10014': 4.0,
+                'issuetype': {'name': 'Story'},
+                'status': {'name': 'In Progress'},
+                'summary': 'JIRA 11',
+                'updated': '2019-02-20T14:34:08.870-0800'
+            }
+        }
+    ]
+}
 
 JIRA_ISSUES = {
     'total': 4,
@@ -230,6 +395,33 @@ JIRA_ISSUES = {
                 'issuetype': {'name': 'Story'},
                 'status': {'name': 'In Progress'},
                 'summary': 'JIRA 8',
+                'updated': '2019-02-20T14:34:08.870-0800'
+            }
+        },
+        {  # JIRA_9 is a Jira Story corresponding to GitHub issue GHUB-9, but no sprint of same name as the GitHub
+            # milestone can be found in Jira.
+            'key': 'JIRA-9',
+            'fields': {
+                'assignee': {
+                    'displayName': 'John Doe',
+                    'key': 'awesome_programmer',
+                    'name': 'awesome_programmer'},
+                'description':
+                    '\r\n┆{color:#707070}Issue is synchronized with a [GitHub issue|'
+                    'https://github.com/ucsc-cgp/abc/issues/9]{color}\r\n'
+                    '┆{color:#707070}Repository Name: abc{color}\r\n'
+                    '┆{color:#707070}Issue Number: 9{color}\r\n',
+                'customfield_10010': [
+                    'com.atlassian.greenhopper.service.sprint.Sprint@5c63f0b2[id=42,'
+                    'rapidViewId=13,state=FUTURE,name=testsprint1,goal=,'
+                    'startDate=<null>,endDate=<null>,completeDate=<null>,sequence=42]'
+                ],
+                'created': '2019-02-05T14:52:11.501-0800',
+                'customfield_10008': None,
+                'customfield_10014': 4.0,
+                'issuetype': {'name': 'Story'},
+                'status': {'name': 'In Progress'},
+                'summary': 'JIRA 9',
                 'updated': '2019-02-20T14:34:08.870-0800'
             }
         }
@@ -333,7 +525,7 @@ GHUB_7 = {'number': 7,
           'created_at': '2019-04-11T21:50:07Z',
           'updated_at': '2019-04-16T20:54:38Z',
           'closed_at': None,
-          'body': 'some comment\n\n┆Issue is synchronized with this [Jira Story](https://mock-jira.atlassian.net/browse/JIRA-6)\n┆Project Name: Test-Project\n┆Issue Number: JIRA-7\n',
+          'body': 'some comment\n\n┆Issue is synchronized with this [Jira Story](https://mock-jira.atlassian.net/browse/JIRA-7)\n┆Project Name: Test-Project\n┆Issue Number: JIRA-7\n',
           'closed_by': None}
 
 # GHUB-8 is a GitHub issue corresponding to Jira story JIRA-8
@@ -377,9 +569,111 @@ GHUB_8 = {'number': 8,
           'created_at': '2019-04-11T21:50:07Z',
           'updated_at': '2019-04-16T20:54:38Z',
           'closed_at': None,
-          'body': 'some comment\n\n┆Issue is synchronized with this [Jira Story](https://mock-jira.atlassian.net/browse/JIRA-6)\n┆Project Name: Test-Project\n┆Issue Number: JIRA-8\n',
+          'body': 'some comment\n\n┆Issue is synchronized with this [Jira Story](https://mock-jira.atlassian.net/browse/JIRA-8)\n┆Project Name: Test-Project\n┆Issue Number: JIRA-8\n',
           'closed_by': None}
 
+# GHUB-9 is a GitHub issue corresponding to Jira story JIRA-9
+GHUB_9 = {'number': 9,
+          'title': 'mock-ticket',
+          'assignee': {'login': 'john doe'},
+          'assignees': [{'login': 'john doe'}],
+          'milestone': None,
+          'created_at': '2019-04-11T21:50:07Z',
+          'updated_at': '2019-04-16T20:54:38Z',
+          'closed_at': None,
+          'body': 'some comment\n\n┆Issue is synchronized with this [Jira Story](https://mock-jira.atlassian.net/browse/JIRA-9)\n┆Project Name: Test-Project\n┆Issue Number: JIRA-9\n',
+          'closed_by': None}
+
+# GHUB-10 is a GitHub issue corresponding to Jira story JIRA-10
+GHUB_10 = {'number': 10,
+          'title': 'GHUB-10',
+          'assignee': {'login': 'john doe'},
+          'assignees': [{'login': 'john doe'}],
+          'milestone': {'url': 'https://api.github.com/repos/ucsc-cgp/abc/milestones/2',
+                        'html_url': 'https://github.com/ucsc-cgp/abc/milestone/2',
+                        'labels_url': 'https://api.github.com/repos/ucsc-cgp/abc/milestones/2/labels',
+                        'id': 4222754,
+                        'node_id': 'MDk6TWlsZXN0b25lNDIyMjc1NA==',
+                        'number': 2,
+                        'title': 'testsprint2',
+                        'description': 'some description',
+                        'creator': {'login': 'awesome hacker',
+                                    'id': 15079157,
+                                    'node_id': 'MDQ6VXNlcjE1MDc5MTU3',
+                                    'avatar_url': 'https://avatars0.githubusercontent.com/u/15079157?v=4',
+                                    'gravatar_id': '',
+                                    'url': 'https://api.github.com/users/awsome_hacker',
+                                    'html_url': 'https://github.com/awsome_hacker',
+                                    'followers_url': 'https://api.github.com/users/awsome_hacker/followers',
+                                    'following_url': 'https://api.github.com/users/awsome_hacker/following{/other_user}',
+                                    'gists_url': 'https://api.github.com/users/awsome_hacker/gists{/gist_id}',
+                                    'starred_url': 'https://api.github.com/users/awsome_hacker/starred{/owner}{/repo}',
+                                    'subscriptions_url': 'https://api.github.com/users/awsome_hacker/subscriptions',
+                                    'organizations_url': 'https://api.github.com/users/awsome_hacker/orgs',
+                                    'repos_url': 'https://api.github.com/users/awsome_hacker/repos',
+                                    'events_url': 'https://api.github.com/users/awsome_hacker/events{/privacy}',
+                                    'received_events_url': 'https://api.github.com/users/awsome_hacker/received_events',
+                                    'type': 'User',
+                                    'site_admin': False},
+                        'open_issues': 1,
+                        'closed_issues': 0,
+                        'state': 'open',
+                        'created_at': '2019-04-11T21:52:08Z',
+                        'updated_at': '2019-04-11T21:52:23Z',
+                        'due_on': '2019-04-19T07:00:00Z',
+                        'closed_at': None},
+          'created_at': '2019-04-11T21:50:07Z',
+          'updated_at': '2019-04-16T20:54:38Z',
+          'closed_at': None,
+          'body': 'some comment\n\n┆Issue is synchronized with this [Jira Story](https://mock-jira.atlassian.net/browse/JIRA-10)\n┆Project Name: Test-Project\n┆Issue Number: JIRA-10\n',
+          'closed_by': None}
+
+# GHUB-11 is a GitHub issue corresponding to Jira story JIRA-11
+GHUB_11 = {'number': 11,
+          'title': 'GHUB-11',
+          'assignee': {'login': 'john doe'},
+          'assignees': [{'login': 'john doe'}],
+          'milestone': {'url': 'https://api.github.com/repos/ucsc-cgp/abc/milestones/1',
+                        'html_url': 'https://github.com/ucsc-cgp/abc/milestone/1',
+                        'labels_url': 'https://api.github.com/repos/ucsc-cgp/abc/milestones/1/labels',
+                        'id': 4222754,
+                        'node_id': 'MDk6TWlsZXN0b25lNDIyMjc1NA==',
+                        'number': 1,
+                        'title': 'testsprint1',
+                        'description': 'some description',
+                        'creator': {'login': 'awesome hacker',
+                                    'id': 15079157,
+                                    'node_id': 'MDQ6VXNlcjE1MDc5MTU3',
+                                    'avatar_url': 'https://avatars0.githubusercontent.com/u/15079157?v=4',
+                                    'gravatar_id': '',
+                                    'url': 'https://api.github.com/users/awsome_hacker',
+                                    'html_url': 'https://github.com/awsome_hacker',
+                                    'followers_url': 'https://api.github.com/users/awsome_hacker/followers',
+                                    'following_url': 'https://api.github.com/users/awsome_hacker/following{/other_user}',
+                                    'gists_url': 'https://api.github.com/users/awsome_hacker/gists{/gist_id}',
+                                    'starred_url': 'https://api.github.com/users/awsome_hacker/starred{/owner}{/repo}',
+                                    'subscriptions_url': 'https://api.github.com/users/awsome_hacker/subscriptions',
+                                    'organizations_url': 'https://api.github.com/users/awsome_hacker/orgs',
+                                    'repos_url': 'https://api.github.com/users/awsome_hacker/repos',
+                                    'events_url': 'https://api.github.com/users/awsome_hacker/events{/privacy}',
+                                    'received_events_url': 'https://api.github.com/users/awsome_hacker/received_events',
+                                    'type': 'User',
+                                    'site_admin': False},
+                        'open_issues': 1,
+                        'closed_issues': 0,
+                        'state': 'open',
+                        'created_at': '2019-04-11T21:52:08Z',
+                        'updated_at': '2019-04-11T21:52:23Z',
+                        'due_on': '2019-04-19T07:00:00Z',
+                        'closed_at': None},
+          'created_at': '2019-04-11T21:50:07Z',
+          'updated_at': '2019-04-16T20:54:38Z',
+          'closed_at': None,
+          'body': 'some comment\n\n┆Issue is synchronized with this [Jira Story](https://mock-jira.atlassian.net/browse/JIRA-11)\n┆Project Name: Test-Project\n┆Issue Number: JIRA-11\n',
+          'closed_by': None}
+
+# Response following re-association of a GitHub/ZenHub ticket with a different sprint.
+GHUB_11_patched = {'milestone': {'title': 'testsprint3', 'number': 3}}
 
 @patch('requests.Response')
 def mock_response(url, *args, **kwargs):
@@ -419,6 +713,15 @@ def mock_response(url, *args, **kwargs):
         return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'},
                              'is_epic': False})
     elif url == 'https://api.zenhub.io/p1/repositories/123/issues/8':
+        return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'},
+                             'is_epic': False})
+    elif url == 'https://api.zenhub.io/p1/repositories/123/issues/9':
+        return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'},
+                             'is_epic': False})
+    elif url == 'https://api.zenhub.io/p1/repositories/123/issues/10':
+        return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'},
+                             'is_epic': False})
+    elif url == 'https://api.zenhub.io/p1/repositories/123/issues/11':
         return MockResponse({'estimate': {'value': 2}, 'plus_ones': [], 'pipeline': {'name': 'In Progress'},
                              'is_epic': False})
 
@@ -538,6 +841,21 @@ def mock_response(url, *args, **kwargs):
     elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=JIRA-8':
         return MockResponse(JIRA_8)
 
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=JIRA-9':
+        return MockResponse(JIRA_9)
+
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/issue/JIRA-9':
+        return MockResponse(JIRA_9_remove_10010, status_code=204)
+
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/issue/JIRA-11':
+        return MockResponse(JIRA_11_remove_10010, status_code=204)
+
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=JIRA-10':
+        return MockResponse(JIRA_10)
+
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=id=JIRA-11':
+        return MockResponse(JIRA_11)
+
     elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=sprint="testsprint1"':
         return MockResponse({'issues': [{'fields': {'customfield_10010':
                                                         ['com.atlassian.greenhopper.service.sprint.Sprint@377a0916'
@@ -546,7 +864,18 @@ def mock_response(url, *args, **kwargs):
                                                          'completeDate=<null>,sequence=42]']}}]}, status_code=200)
 
     elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=sprint="testsprint2"':
-        return MockResponse(None, status_code=400)
+        return MockResponse(
+            {'errorMessages':
+                 ["Sprint with name 'testsprint2' does not exist or you do not have permission to view it."],
+             'warningMessages': []},
+            status_code=400)
+
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=sprint="testsprint3"':
+        return MockResponse({'issues': [{'fields': {'customfield_10010':
+                                                        ['com.atlassian.greenhopper.service.sprint.Sprint@377a0916'
+                                                         '[id=99,rapidViewId=82,state=ACTIVE,name=testsprint3,goal=,'
+                                                         'startDate=2019-04-25T21:51:28.028Z,endDate=2019-05-31T21:51:00.000Z,'
+                                                         'completeDate=<null>,sequence=99]']}}]}, status_code=200)
 
     # Get Jira epic children
     elif "https://ucsc-cgl.atlassian.net/rest/api/latest/search?jql=cf[10008]='TEST-2'" in url:
@@ -571,10 +900,31 @@ def mock_response(url, *args, **kwargs):
     elif url == 'https://api.github.com/repos/ucsc-cgp/abc/issues/8':
         return MockResponse(GHUB_8)
 
+    elif url == 'https://api.github.com/repos/ucsc-cgp/abc/issues/9':
+        return MockResponse(GHUB_9)
+
+    elif url == 'https://api.github.com/repos/ucsc-cgp/abc/issues/10':
+        return MockResponse(GHUB_10)
+
+    elif url == 'https://api.github.com/repos/ucsc-cgp/abc/issues/11':
+        return MockResponse(GHUB_11)
+
+    # Mock to patch a GitHib issue to reassociate it with a different milestone.
+    elif args == ('https://api.github.com/repos/ucsc-cgp/abc/issues/11',) and \
+            kwargs == {'headers': {'Authorization': 'token token'}, 'json': {'milestone': 3}}:
+        return MockResponse(GHUB_11_patched, status_code=200)
+
+    # Mock sprints
+    # testsprint1
     elif url == 'https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/42/issue':
         return MockResponse(None, status_code=204)
 
+    # testsprint2
     elif url == 'https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/13/issue':
+        return MockResponse(None, status_code=204)
+
+    # testsprint3
+    elif url == 'https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/99/issue':
         return MockResponse(None, status_code=204)
 
     elif 'https://api.github.com/repos/ucsc-cgp/abc/issues/' in url:
@@ -589,6 +939,12 @@ def mock_response(url, *args, **kwargs):
             'updated_at': '2019-04-21T22:51:33Z',
             'number': match_obj.group(1)
             })
+
+    # Mock response for getting milestones of repo:
+    elif url == 'https://api.github.com/repos/ucsc-cgp/abc/milestones':
+        return MockResponse(
+            [{'title': 'testsprint1', 'number': 1}, {'title': 'testsprint2', 'number': 2},
+             {'title': 'testsprint3', 'number': 3}], status_code=200)
 
     # Mock response for getting repo id
     elif url == 'https://api.github.com/repos/ucsc-cgp/abc':
@@ -621,8 +977,9 @@ class TestSync(unittest.TestCase):
 
         self.patch_requests = patch('requests.get', side_effect=mock_response).start()
         self.patch_token = patch('src.access._get_token', return_value='token').start()
-
-        self.ZENHUB_REPO = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['1', '2', '3', '4'])
+        
+        self.ZENHUB_REPO = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=[str(x) for x in range(1, 5)])
+        self.ZENHUB_REPO_SYNC = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=[str(x) for x in range(5, 12)])
         self.ZENHUB_ISSUE_1 = self.ZENHUB_REPO.issues['1']
 
         self.JIRA_REPO = JiraRepo(repo_name='TEST', jira_org='ucsc-cgl')
@@ -724,16 +1081,17 @@ class TestSync(unittest.TestCase):
                     ('ZenHubIssue', 'JiraIssue')]
         self.assertEqual(called_with, expected)
 
+    @patch('src.github.requests.patch', side_effect=mock_response)
+    @patch('src.jira.requests.put', side_effect=mock_response)
     @patch('src.jira.requests.get', side_effect=mock_response)
     @patch('src.jira.requests.post', side_effect=mock_response)
-    def test_sync_sprint(self, jira_post, jira_get):
+    def test_sync_sprint(self, jira_post, jira_get, jira_put, git_patch):
         # This only test from ZenHub to Jira. Tests from Jira to ZenHub are logically identical and therefore
-        # we don't cover it here.
-        zen_repo = ZenHubRepo(repo_name='abc', org='ucsc-cgp', issues=['5', '6', '7', '8'])
-        jira_repo = JiraRepo(repo_name='JIRA', jira_org='ucsc-cgl')
+        # tests don't cover most of the Jira -> Zen, except for the last test.
+
         # Trivial test: Zen issue not part of a milestone, the corresponding Jira story is not part of a sprint.
         # No action required.
-        zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='5')
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='5')
         jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-5')
         assert zen.milestone_name is None
         assert jira.sprint_id is None
@@ -742,7 +1100,7 @@ class TestSync(unittest.TestCase):
         self.assertEqual(jira_post.call_args_list, [])
 
         # Zen issue is part of a milestone, and its title is same as the equivalent Jira story. Again, no action needed.
-        zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='6')
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='6')
         jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-6')
         assert zen.milestone_name == 'testsprint1'
         assert jira.sprint_name == 'testsprint1'
@@ -753,29 +1111,77 @@ class TestSync(unittest.TestCase):
 
         # Zen issue is part of a milestone, but corresponding Jira issue is not. Tests whether Jira issue has been added
         # to the Jira sprint of the equivalent name.
-        zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='7')
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='7')
         jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-7')
         assert zen.milestone_name == 'testsprint1'
         assert jira.sprint_name is None
         Sync.sync_sprints(zen, jira)
-        print(jira_post.call_args_list)
-        self.assertEqual(jira_post.mock_calls[0][1][0], 'https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/42/issue')
+        self.assertEqual('https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/42/issue', jira_post.mock_calls[0][1][0])
         expected = {'headers': {'Authorization': 'Basic token'}, 'json': {'issues': ['JIRA-7']}}
         observed = jira_post.mock_calls[0][2]
         self.assertEqual(expected, observed)
 
         # Zen issue is part of a milestone, but no corresponding sprint with the milestone title exists in Jira.
-        zen = ZenHubIssue(repo=self.ZENHUB_REPO, key='8')
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='8')
         assert zen.milestone_name == 'testsprint2'
         jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-8')
         assert jira.sprint_name is None
         Sync.sync_sprints(zen, jira)
         self.assertEqual(jira.sprint_id, None)
 
-    def tearDown(self):
-        patch.stopall()  # Stop all the patches that were started in setUp
+        # Zen issue is not part of a milestone, but corresponding Jira issue is part of a sprint.
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='9')
+        assert zen.milestone_name == None
+        jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-9')
+        assert jira.sprint_name == 'testsprint1'
+        assert jira.sprint_id == 42
+        Sync.sync_sprints(zen, jira)
+        self.assertTrue(jira_put.called)
+        self.assertEqual(jira_put.call_args[0][0], 'https://ucsc-cgl.atlassian.net/rest/api/latest/issue/JIRA-9')
+        self.assertEqual(jira_put.mock_calls[0][2]['json']['fields']['customfield_10010'], None)
+        self.assertEqual(jira.sprint_id, None)
+        self.assertEqual(jira.sprint_name, None)
+        self.assertEqual(zen.milestone_name, None)
 
+        # Zen issue is part of a milestone, and Jira issue is part of sprint, but milestone name and sprint name
+        # do not match. Assert no HTTP calls are made.
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='10')
+        assert zen.milestone_name == 'testsprint2'
+        jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-10')
+        assert jira.sprint_name == 'testsprint1'
+        assert jira.sprint_id == 42
+        expected = (27, 1, 1)  # counts of get, post and put calls up to this point
+        Sync.sync_sprints(zen, jira)
+        observed = (jira_get.call_count, jira_post.call_count, jira_put.call_count)
+        self.assertEqual(expected, observed)
 
+        # Zen issue is part of a milestone, and Jira issue is part of sprint, but milestone name and sprint name
+        # do not match. But sprint in Jira with the same name as in Zen exists.
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='11')
+        assert zen.milestone_name == 'testsprint1'
+        jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-11')
+        assert jira.sprint_name == 'testsprint3'
+        assert jira.sprint_id == 99
+        expected = (32, 2, 2)  # counts of get, post and put calls up to this point
+        Sync.sync_sprints(zen, jira)
+        self.assertEqual('testsprint1', jira.sprint_name)
+        self.assertTrue(jira.sprint_name == zen.milestone_name)
+        self.assertEqual(42, jira.sprint_id)
+        self.assertEqual('https://ucsc-cgl.atlassian.net/rest/agile/1.0/sprint/42/issue', jira_post.mock_calls[2][1][0])
+        self.assertEqual('JIRA-11', jira_post.mock_calls[2][2]['json']['issues'][0])
+        observed = (jira_get.call_count, jira_post.call_count, jira_put.call_count)
+        self.assertEqual(expected, observed)
 
-
-
+        # Jira issue is part of a sprint, and Zen issue is part of milestone, but sprint name and milestone name
+        # do not match. But milestone in Zen with the same name as Jira sprint exists.
+        jira = JiraIssue(repo=self.JIRA_REPO, key='JIRA-11')
+        assert jira.sprint_name == 'testsprint3'
+        zen = ZenHubIssue(repo=self.ZENHUB_REPO_SYNC, key='11')
+        assert zen.milestone_name == 'testsprint1'
+        assert zen.milestone_id == 1
+        Sync.sync_sprints(jira, zen)
+        self.assertEqual('testsprint3', zen.milestone_name)
+        self.assertTrue(jira.sprint_name == zen.milestone_name)
+        self.assertEqual(3, zen.milestone_id)
+        self.assertEqual('https://api.github.com/repos/ucsc-cgp/abc/issues/11', git_patch.call_args[0][0])
+        self.assertEqual({'milestone': 3}, git_patch.call_args[1]['json'])

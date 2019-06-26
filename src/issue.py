@@ -23,11 +23,9 @@ class Issue:
         self.updated = None  # datetime object
 
         self.sprint_name = None  # str, when synchronized this should be the same in Jira and ZenHub
-        self.milestone_name = None  # str
-        self.milestone_number = None  # int, unique to GitHub/ZenHub
-        self.sprint_name = None
         self.sprint_id = None  # str, unique to Jira
-
+        self.milestone_name = None  # str
+        self.milestone_id = None  # int, unique to GitHub/ZenHub
         self.repo = None  # Repo object, the repo in which this issue lives
 
     def update_from(self, source: 'Issue'):
@@ -97,5 +95,5 @@ class Repo:
                                                           success_code=success_code)['items'])
             return content
 
-        else:
-            raise RuntimeError(f'{response.status_code} Error: {response.text}')
+        elif response.json():  # we don't want to raise an error, but deal with it locally
+            return response.json()
