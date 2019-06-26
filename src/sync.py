@@ -156,7 +156,7 @@ class Sync:
     def sync_sprints(source: 'Issue', dest: 'Issue'):
         """
         Sync sprint membership of two issues
-        :param source: This issue's sprint status will be replicated in the sink issue
+        :param source: This issue's sprint status will be replicated in the dest issue
         :param dest: This issue's sprint status will be updated to match the source
         """
 
@@ -180,6 +180,23 @@ class Sync:
                     else:
                         logger.warning(
                             f'Sync sprint: No Sprint ID found for {dest.jira_key} and sprint title {milestone_title}')
+                else:
+                    assert dest.sprint_name != source.milestone_name
+                    # Check if any sprint in dest has same name as source.milestone_name. If so, swap.
+                    sprint_id = dest.get_sprint_id(source.milestone_name)
+                    if sprint_id is not None:
+                        logger.info(f'Sync sprint: Found sprint name {source.milestone_name} in Jira project')
+                        dest.remove_from_sprint()  # old sprint
+                        dest.sprint_name = source.milestone_name
+                        dest.sprint_id = sprint_id
+                        logger.info(f'Jira issue {dest.jira_key} now part of sprint {dest.sprint_name}')
+                        dest.add_to_sprint(sprint_id)  # new sprint
+                    else:
+                        logger.warning(
+                            f'Sync sprint: Cannot find sprint name {source.milestone_name} in the destination. '
+                            f'Association of issue {dest.jira_key} will remain unchanged. Sprint name {dest.sprint_name}'
+                            f' does not match milestone name {source.milestone_name} - sprint and milestone names '
+                            f'must match!')
 
         elif source.__class__.__name__ == 'JiraIssue':
             if source.sprint_name is None:
@@ -201,4 +218,20 @@ class Sync:
                     else:
                         logger.warning(
                             f'Sync sprint: No Sprint ID found for {dest.github_key} and sprint title {sprint_title}')
-
+                else:
+                    assert dest.milestone_name != source.sprint_name
+                    # Logic same as in above leg of conditional.
+                    milestone_id = dest.get_milestone_id(source.sprint_name)
+                    if milestone_id:
+                        logger.info(f'Sync sprint: Found sprint name {source.sprint_name} in GitHub repo')
+                        dest.remove_from_milestone()
+                        dest.milestone_name = source.sprint_name
+                        dest.milestone_id = milestone_id
+                        logger.info(f'GitHub issue {dest.github_key} now part of milestone {dest.milestone_name}')
+                        dest.add_to_milestone(milestone_id)
+                    else:
+                        logger.warning(
+                            f'Sync sprint: Cannot find sprint name {source.sprint_name} in the destination. '
+                            f'Association of issue {dest.milestone_id} will remain unchanged. Milestone name '
+                            f'{dest.milestone_name} does not match sprint name {source.sprint_name} - sprint and '
+                            f'milestone names must match!')

@@ -1,5 +1,4 @@
 import datetime
-import pytz
 import unittest
 from unittest.mock import patch
 
@@ -10,9 +9,9 @@ def mocked_response(*args, **kwargs):
     """A class to mock a response from a Jira API call"""
 
     class MockResponse:
-        def __init__(self, json_data):
+        def __init__(self, json_data, status_code=200):
             self.json_data = json_data
-            self.status_code = 200
+            self.status_code = status_code
 
         def json(self):
             return self.json_data
@@ -85,6 +84,21 @@ def mocked_response(*args, **kwargs):
              }
         )
 
+    elif args == ('https://mock-org.atlassian.net/search?jql=sprint="testsprint1"',):
+        return MockResponse(
+            {'issues': [{'fields': {'customfield_10010': [
+                'com.atlassian.greenhopper.service.sprint.Sprint@447ac53[id=65,rapidViewId=82,state=ACTIVE,name=testsprint1,goal=,startDate=2019-04-25T21:51:28.028Z,endDate=2019-05-31T21:51:00.000Z,completeDate=<null>,sequence=65]']}}]},
+            status_code=200
+        )
+
+    elif args == ('https://mock-org.atlassian.net/search?jql=sprint="doesNotExist"',):
+        return MockResponse(
+            {'errorMessages':
+                 ["Sprint with name 'doesNotExist' does not exist or you do not have permission to view it."],
+             'warningMessages': []},
+            status_code=400
+        )
+
     else:
         raise RuntimeError(args, kwargs)
 
@@ -101,7 +115,7 @@ class TestJiraIssue(unittest.TestCase):
 
         # Initialize a board with all its issues
         cls.board = JiraRepo(repo_name='TEST', jira_org='org')
-        print(cls.board.issues)
+        #print(cls.board.issues)
         cls.j = cls.board.issues['REAL-ISSUE-1']
         cls.k = cls.board.issues['REAL-ISSUE-2']
 
@@ -133,3 +147,16 @@ class TestJiraIssue(unittest.TestCase):
         # self.assertEqual(self.k.assignees, ['aaaaa'])
         self.assertEqual(self.k.story_points, 7.0)
         self.assertEqual(self.k.status, 'Done')
+
+    @patch('src.jira.requests.get', side_effect=mocked_response)
+    def test_get_sprint_id(self, jira_get):
+
+        id = self.j.get_sprint_id(sprint_title='testsprint1')
+        self.assertEqual(65, id)
+
+        id = self.j.get_sprint_id(sprint_title='doesNotExist')
+        expected = 'https://mock-org.atlassian.net/search?jql=sprint="doesNotExist"'
+        observed = jira_get.call_args[0][0]
+        self.assertEqual(expected, observed)
+        self.assertEqual(id, None)
+
