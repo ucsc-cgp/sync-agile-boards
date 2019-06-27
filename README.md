@@ -141,7 +141,7 @@ This will include log messages for every time an issue is edited in Jira or ZenH
 A complete example:
 
 ```bash
-$ python sync_agile_boards.py ucsc-cgl/TEST ucsc-cgp/sync-test -j -o -v
+$ python sync_agile_boards.py repo ucsc-cgl/TEST ucsc-cgp/sync-test -j -o -v
 ```
 This will get all issues that are open in the `ucsc-cgp` ZenHub repo `sync-test`, get their matching issues in Jira,
 and synchronize their information from each Jira issue to each ZenHub issue, storing all messages in the log file.
@@ -152,7 +152,7 @@ Using the optional
 -jql flag, you can add additional JQL filters, like assignee, or updated timestamp, to the request URL and only synchronize 
 tickets that match. For example:
 ```bash
-$ python sync_agile_boards.py test-org/TEST zen/zen-repo -z -jql assignee=you
+$ python sync_agile_boards.py repo test-org/TEST zen/zen-repo -z -jql assignee=you
 ```
 will make a request using the URL `https://test-org.atlassian.net/rest/api/latest/search?jql=project=TEST AND assignee=you`
 that will return all issues in the TEST repo that are assigned to 'you'. Jira queries should contain spaces separating
