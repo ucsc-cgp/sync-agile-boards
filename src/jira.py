@@ -66,7 +66,7 @@ class JiraIssue(Issue):
             if 'issues' in json.keys():  # If the key doesn't match any issues, this will be an empty list
                 content = json['issues'][0]  # Get the one and only issue in the response
             else:
-                raise ValueError('No issue matching this id was found')
+                raise ValueError(f'No issue matching Jira ID {key} was found')
 
         self.description = content['fields']['description']
         self.issue_type = content['fields']['issuetype']['name']
